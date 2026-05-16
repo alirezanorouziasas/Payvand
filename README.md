@@ -1,31 +1,27 @@
-# Payvand MVP
+# Payvand MVP Interactive
 
-A free-launch ready React/Vite prototype for Payvand.
+Interactive React/Vite MVP for Payvand.
 
-## Run locally
-```bash
-npm install
-npm run dev
-```
-
-## Deploy free on Vercel
-1. Create a new GitHub repository.
-2. Upload/push these files.
-3. Go to Vercel.com and import the GitHub repository.
-4. Keep defaults and click Deploy.
-
-## Current MVP screens
-- Landing page
-- Login/Register demo
-- Home dashboard
-- Fund management
+## Buttons/actions now working
+- Get Started
+- Donate as Guest
+- Login Continue
+- Bell notification
+- Pay Monthly
+- View Queue
+- Next Receiver
+- Emergency Fund card
+- Approve Pending Payment
+- Donation amount buttons
 - Donate to Emergency Fund
-- Members
-- Reports
+- Share Donation Link
+- Add Member
+- Member profile
+- Export Report
+- Open Rules
 
-## Next production steps
-- Connect Supabase Auth
-- Add database tables
-- Add admin approval workflow
-- Add manual payment receipt upload
-- Add legal pages: Terms, Privacy, Donation Policy
+## Deploy
+Upload files to GitHub, then deploy with Vercel:
+- Framework Preset: Vite
+- Build command: npm run build
+- Output directory: dist
