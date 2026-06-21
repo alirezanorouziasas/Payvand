@@ -50,3 +50,13 @@ This version includes:
 ## Important GitHub upload note
 Upload the contents of this folder directly to the root of your GitHub repository.
 Do not upload only the ZIP file.
+
+
+## Update
+The small header subtitle has been changed from Persian to English: Growth through collaboration.
+
+
+## Bilingual update
+This version includes English and Persian UI.
+Use the language button in the header to switch between EN and FA.
+Persian mode also switches the interface to RTL.

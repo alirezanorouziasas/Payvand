@@ -1,8 +1,125 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Home, Users, Wallet, BarChart3, ShieldCheck, Bell, ArrowUpRight, CheckCircle2, Clock3, Leaf, HandHeart, Settings, Plus, LogIn, HeartHandshake } from 'lucide-react';
+import { Home, Users, Wallet, BarChart3, ShieldCheck, Bell, ArrowUpRight, CheckCircle2, Clock3, Leaf, HandHeart, Settings, Plus, LogIn, HeartHandshake, Languages } from 'lucide-react';
 import { motion } from 'framer-motion';
 import './styles.css';
+
+const translations = {
+  en: {
+    tagline: 'Growth through collaboration',
+    landingTitle: 'Community fund, built on trust.',
+    landingText: 'Payvand helps members manage a transparent rotating fund, emergency support, donations, queue order, and monthly reports.',
+    getStarted: 'Get Started',
+    donateGuest: 'Donate as Guest',
+    monthlyPool: 'Monthly Pool',
+    trustSystem: 'Trust System',
+    emergency: 'Emergency',
+    reports: 'Reports',
+    loginTitle: 'Login / Register',
+    loginText: 'MVP demo screen. Later this connects to Supabase Auth.',
+    email: 'Email address',
+    password: 'Password',
+    continue: 'Continue',
+    back: 'Back',
+    home: 'Home',
+    fund: 'Fund',
+    donate: 'Donate',
+    members: 'Members',
+    currentPool: 'Current Pool',
+    monthlyNote: '15 members × 500 NOK',
+    payMonthly: 'Pay Monthly',
+    viewQueue: 'View Queue',
+    trustScore: 'Trust Score',
+    emergencyFund: 'Emergency Fund',
+    nextReceiver: 'Next Receiver',
+    confirmed: 'Confirmed',
+    monthlyQueue: 'Monthly Queue',
+    fundManagement: 'Fund Management',
+    fundManagementText: 'Track payments, payouts, and reserves.',
+    collected: 'Collected this month',
+    pending: 'Pending',
+    emergencyReserve: 'Emergency reserve',
+    addTransaction: 'Add Transaction',
+    paymentStatus: 'Payment Status',
+    paid: 'Paid',
+    openDonation: 'Open Donation',
+    supportEmergency: 'Support Emergency Fund',
+    donateText: 'Non-members can donate here. All donations go directly to emergency support.',
+    emergencyBalance: 'Emergency Fund Balance',
+    externalDonations: 'Includes 850 NOK external donations',
+    customAmount: 'Custom amount',
+    donateButton: 'Donate to Emergency Fund',
+    shareDonation: 'Share Donation Link',
+    recentDonations: 'Recent Donations',
+    publicReport: 'Public report',
+    transparencyReport: 'Transparency Report',
+    transparencyText: 'Simple monthly public report for members.',
+    income: 'Income',
+    payout: 'Payout',
+    exportReport: 'Export Report',
+    governance: 'Governance',
+    governanceText: 'All key decisions require majority voting. Large rule changes require 70% approval.',
+    openRules: 'Open Rules',
+    language: 'FA'
+  },
+  fa: {
+    tagline: 'رشد از طریق همکاری',
+    landingTitle: 'صندوق اجتماعی، بر پایه اعتماد',
+    landingText: 'پیوند به اعضا کمک می‌کند صندوق گردشی، کمک اضطراری، کمک‌های داوطلبانه، صف دریافت و گزارش‌های ماهانه را شفاف مدیریت کنند.',
+    getStarted: 'شروع',
+    donateGuest: 'کمک به‌عنوان مهمان',
+    monthlyPool: 'صندوق ماهانه',
+    trustSystem: 'سیستم اعتماد',
+    emergency: 'اضطراری',
+    reports: 'گزارش‌ها',
+    loginTitle: 'ورود / ثبت‌نام',
+    loginText: 'این صفحه فعلاً نسخه نمایشی است. بعداً به Supabase Auth متصل می‌شود.',
+    email: 'ایمیل',
+    password: 'رمز عبور',
+    continue: 'ادامه',
+    back: 'بازگشت',
+    home: 'خانه',
+    fund: 'صندوق',
+    donate: 'کمک',
+    members: 'اعضا',
+    currentPool: 'صندوق فعلی',
+    monthlyNote: '۱۵ عضو × ۵۰۰ کرون',
+    payMonthly: 'پرداخت ماهانه',
+    viewQueue: 'مشاهده نوبت‌ها',
+    trustScore: 'امتیاز اعتماد',
+    emergencyFund: 'صندوق اضطراری',
+    nextReceiver: 'دریافت‌کننده بعدی',
+    confirmed: 'تأیید شده',
+    monthlyQueue: 'صف ماهانه',
+    fundManagement: 'مدیریت صندوق',
+    fundManagementText: 'پرداخت‌ها، دریافت‌ها و ذخیره اضطراری را مدیریت کنید.',
+    collected: 'جمع‌آوری این ماه',
+    pending: 'در انتظار',
+    emergencyReserve: 'ذخیره اضطراری',
+    addTransaction: 'افزودن تراکنش',
+    paymentStatus: 'وضعیت پرداخت',
+    paid: 'پرداخت شده',
+    openDonation: 'کمک آزاد',
+    supportEmergency: 'حمایت از صندوق اضطراری',
+    donateText: 'افراد غیرعضو هم می‌توانند کمک کنند. همه کمک‌ها مستقیماً وارد صندوق اضطراری می‌شود.',
+    emergencyBalance: 'موجودی صندوق اضطراری',
+    externalDonations: 'شامل ۸۵۰ کرون کمک افراد غیرعضو',
+    customAmount: 'مبلغ دلخواه',
+    donateButton: 'کمک به صندوق اضطراری',
+    shareDonation: 'اشتراک لینک کمک',
+    recentDonations: 'کمک‌های اخیر',
+    publicReport: 'گزارش عمومی',
+    transparencyReport: 'گزارش شفافیت',
+    transparencyText: 'گزارش ماهانه ساده و شفاف برای اعضا.',
+    income: 'ورودی',
+    payout: 'پرداختی',
+    exportReport: 'خروجی گزارش',
+    governance: 'قوانین و تصمیم‌گیری',
+    governanceText: 'تصمیمات مهم با رأی اکثریت انجام می‌شود. تغییرات بزرگ نیاز به ۷۰٪ رأی موافق دارد.',
+    openRules: 'مشاهده قوانین',
+    language: 'EN'
+  }
+};
 
 const members = [
   { name: 'Ali', status: 'Paid', score: 94 },
@@ -25,29 +142,33 @@ const donations = [
 
 function PayvandApp() {
   const [tab, setTab] = useState('landing');
+  const [lang, setLang] = useState('en');
+  const t = translations[lang];
+  const rtl = lang === 'fa';
+
   const nav = [
-    { id: 'home', icon: Home, label: 'Home' },
-    { id: 'fund', icon: Wallet, label: 'Fund' },
-    { id: 'donate', icon: HandHeart, label: 'Donate' },
-    { id: 'members', icon: Users, label: 'Members' },
-    { id: 'reports', icon: BarChart3, label: 'Reports' },
+    { id: 'home', icon: Home, label: t.home },
+    { id: 'fund', icon: Wallet, label: t.fund },
+    { id: 'donate', icon: HandHeart, label: t.donate },
+    { id: 'members', icon: Users, label: t.members },
+    { id: 'reports', icon: BarChart3, label: t.reports },
   ];
 
   const appTabs = ['home', 'fund', 'donate', 'members', 'reports'];
 
   return (
-    <div className="page">
+    <div className={rtl ? 'page rtl' : 'page'} dir={rtl ? 'rtl' : 'ltr'}>
       <div className="phone">
         <div className="hero-bg" />
         <div className="content">
-          <Header setTab={setTab} />
-          {tab === 'landing' && <LandingScreen setTab={setTab} />}
-          {tab === 'login' && <LoginScreen setTab={setTab} />}
-          {tab === 'home' && <HomeScreen />}
-          {tab === 'fund' && <FundScreen />}
-          {tab === 'donate' && <DonateScreen />}
-          {tab === 'members' && <MembersScreen />}
-          {tab === 'reports' && <ReportsScreen />}
+          <Header setTab={setTab} lang={lang} setLang={setLang} t={t} />
+          {tab === 'landing' && <LandingScreen setTab={setTab} t={t} />}
+          {tab === 'login' && <LoginScreen setTab={setTab} t={t} />}
+          {tab === 'home' && <HomeScreen t={t} />}
+          {tab === 'fund' && <FundScreen t={t} />}
+          {tab === 'donate' && <DonateScreen t={t} />}
+          {tab === 'members' && <MembersScreen t={t} />}
+          {tab === 'reports' && <ReportsScreen t={t} />}
         </div>
 
         {appTabs.includes(tab) && (
@@ -69,81 +190,84 @@ function PayvandApp() {
   );
 }
 
-function Header({ setTab }) {
+function Header({ setTab, lang, setLang, t }) {
   return (
     <header className="header">
       <div className="brand">
         <div className="logo logo-img"><img src="/payvand-logo.png" alt="Payvand logo" /></div>
         <div>
           <h1><span>Pay</span>vand</h1>
-          <p>رشد از طریق همکاری</p>
+          <p>{t.tagline}</p>
         </div>
       </div>
-      <button className="icon-btn" onClick={() => setTab('login')}><Bell size={20} /></button>
+      <div className="header-actions">
+        <button className="lang-btn" onClick={() => setLang(lang === 'en' ? 'fa' : 'en')}><Languages size={16} /> {t.language}</button>
+        <button className="icon-btn" onClick={() => setTab('login')}><Bell size={20} /></button>
+      </div>
     </header>
   );
 }
 
-function LandingScreen({ setTab }) {
+function LandingScreen({ setTab, t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack landing">
       <div className="card glass">
         <img className="hero-logo" src="/payvand-logo.png" alt="Payvand logo" />
-        <h2>Community fund, built on trust.</h2>
-        <p>Payvand helps members manage a transparent rotating fund, emergency support, donations, queue order, and monthly reports.</p>
-        <button className="primary" onClick={() => setTab('login')}>Get Started</button>
-        <button className="secondary" onClick={() => setTab('donate')}>Donate as Guest</button>
+        <h2>{t.landingTitle}</h2>
+        <p>{t.landingText}</p>
+        <button className="primary" onClick={() => setTab('login')}>{t.getStarted}</button>
+        <button className="secondary" onClick={() => setTab('donate')}>{t.donateGuest}</button>
       </div>
       <div className="feature-grid">
-        <MiniCard icon={Wallet} title="Monthly Pool" value="7,500" />
-        <MiniCard icon={ShieldCheck} title="Trust System" value="92%" />
-        <MiniCard icon={HandHeart} title="Emergency" value="2,050" />
-        <MiniCard icon={BarChart3} title="Reports" value="Open" />
+        <MiniCard icon={Wallet} title={t.monthlyPool} value="7,500" />
+        <MiniCard icon={ShieldCheck} title={t.trustSystem} value="92%" />
+        <MiniCard icon={HandHeart} title={t.emergency} value="2,050" />
+        <MiniCard icon={BarChart3} title={t.reports} value="Open" />
       </div>
     </motion.div>
   );
 }
 
-function LoginScreen({ setTab }) {
+function LoginScreen({ setTab, t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack login">
       <div className="card">
-        <h2>Login / Register</h2>
-        <p className="muted">MVP demo screen. Later this connects to Supabase Auth.</p>
-        <input placeholder="Email address" />
-        <input placeholder="Password" type="password" />
-        <button className="primary" onClick={() => setTab('home')}><LogIn size={18} /> Continue</button>
-        <button className="secondary" onClick={() => setTab('landing')}>Back</button>
+        <h2>{t.loginTitle}</h2>
+        <p className="muted">{t.loginText}</p>
+        <input placeholder={t.email} />
+        <input placeholder={t.password} type="password" />
+        <button className="primary" onClick={() => setTab('home')}><LogIn size={18} /> {t.continue}</button>
+        <button className="secondary" onClick={() => setTab('landing')}>{t.back}</button>
       </div>
     </motion.div>
   );
 }
 
-function HomeScreen() {
+function HomeScreen({ t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack">
       <div className="card">
         <div className="split">
           <div>
-            <p className="muted">Current Pool</p>
+            <p className="muted">{t.currentPool}</p>
             <h2>7,500 NOK</h2>
-            <p className="tiny">15 members × 500 NOK</p>
+            <p className="tiny">{t.monthlyNote}</p>
           </div>
           <div className="soft-icon"><Wallet /></div>
         </div>
         <div className="actions">
-          <button className="primary">Pay Monthly</button>
-          <button className="secondary">View Queue</button>
+          <button className="primary">{t.payMonthly}</button>
+          <button className="secondary">{t.viewQueue}</button>
         </div>
       </div>
       <div className="feature-grid">
-        <MiniCard icon={ShieldCheck} title="Trust Score" value="92%" />
-        <MiniCard icon={HandHeart} title="Emergency Fund" value="2,050 NOK" />
+        <MiniCard icon={ShieldCheck} title={t.trustScore} value="92%" />
+        <MiniCard icon={HandHeart} title={t.emergencyFund} value="2,050 NOK" />
       </div>
       <div className="card">
         <div className="split mb">
-          <h3>Next Receiver</h3>
-          <span className="pill ok">Confirmed</span>
+          <h3>{t.nextReceiver}</h3>
+          <span className="pill ok">{t.confirmed}</span>
         </div>
         <div className="person">
           <div className="avatar">S</div>
@@ -151,59 +275,59 @@ function HomeScreen() {
           <ArrowUpRight className="muted-icon" />
         </div>
       </div>
-      <h3 className="section">Monthly Queue</h3>
+      <h3 className="section">{t.monthlyQueue}</h3>
       {queue.map((q) => <QueueItem key={q.month} {...q} />)}
     </motion.div>
   );
 }
 
-function FundScreen() {
+function FundScreen({ t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
       <div className="card">
-        <h2>Fund Management</h2>
-        <p className="muted">Track payments, payouts, and reserves.</p>
-        <FundRow label="Collected this month" value="6,500 NOK" percent="87%" />
-        <FundRow label="Pending" value="1,000 NOK" percent="13%" />
-        <FundRow label="Emergency reserve" value="2,050 NOK" percent="28%" />
-        <button className="primary full">Add Transaction</button>
+        <h2>{t.fundManagement}</h2>
+        <p className="muted">{t.fundManagementText}</p>
+        <FundRow label={t.collected} value="6,500 NOK" percent="87%" />
+        <FundRow label={t.pending} value="1,000 NOK" percent="13%" />
+        <FundRow label={t.emergencyReserve} value="2,050 NOK" percent="28%" />
+        <button className="primary full">{t.addTransaction}</button>
       </div>
       <div className="card">
-        <h3>Payment Status</h3>
-        {members.map((m) => <PaymentMember key={m.name} {...m} />)}
+        <h3>{t.paymentStatus}</h3>
+        {members.map((m) => <PaymentMember key={m.name} {...m} t={t} />)}
       </div>
     </motion.div>
   );
 }
 
-function DonateScreen() {
+function DonateScreen({ t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
       <div className="card">
         <div className="split">
           <div>
-            <p className="muted">Open Donation</p>
-            <h2>Support Emergency Fund</h2>
-            <p className="muted">Non-members can donate here. All donations go directly to emergency support.</p>
+            <p className="muted">{t.openDonation}</p>
+            <h2>{t.supportEmergency}</h2>
+            <p className="muted">{t.donateText}</p>
           </div>
           <div className="soft-icon"><HandHeart /></div>
         </div>
         <div className="balance">
-          <p>Emergency Fund Balance</p>
+          <p>{t.emergencyBalance}</p>
           <h2>2,050 NOK</h2>
-          <span>Includes 850 NOK external donations</span>
+          <span>{t.externalDonations}</span>
         </div>
         <div className="amount-grid">
           {['100', '250', '500'].map((amount) => <button key={amount}>{amount} NOK</button>)}
         </div>
-        <div className="custom-amount"><span>Custom amount</span><b>0 NOK</b></div>
-        <button className="primary full green">Donate to Emergency Fund</button>
-        <button className="secondary full">Share Donation Link</button>
+        <div className="custom-amount"><span>{t.customAmount}</span><b>0 NOK</b></div>
+        <button className="primary full green">{t.donateButton}</button>
+        <button className="secondary full">{t.shareDonation}</button>
       </div>
       <div className="card">
         <div className="split mb">
-          <h3>Recent Donations</h3>
-          <span className="tiny">Public report</span>
+          <h3>{t.recentDonations}</h3>
+          <span className="tiny">{t.publicReport}</span>
         </div>
         {donations.map((d, i) => (
           <div className="donation" key={i}>
@@ -219,19 +343,19 @@ function DonateScreen() {
   );
 }
 
-function MembersScreen() {
+function MembersScreen({ t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
       <div className="split">
-        <h2 className="white-title">Members</h2>
+        <h2 className="white-title">{t.members}</h2>
         <button className="white-btn"><Plus size={18} /></button>
       </div>
       <div className="card">
         {members.map((m) => (
           <div className="member" key={m.name}>
             <div className="avatar small">{m.name[0]}</div>
-            <div><b>{m.name}</b><p>Trust Score: {m.score}</p></div>
-            <span className={m.status === 'Paid' ? 'pill ok' : 'pill warn'}>{m.status}</span>
+            <div><b>{m.name}</b><p>{t.trustScore}: {m.score}</p></div>
+            <span className={m.status === 'Paid' ? 'pill ok' : 'pill warn'}>{m.status === 'Paid' ? t.paid : t.pending}</span>
           </div>
         ))}
       </div>
@@ -239,24 +363,24 @@ function MembersScreen() {
   );
 }
 
-function ReportsScreen() {
+function ReportsScreen({ t }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
       <div className="card">
-        <h2>Transparency Report</h2>
-        <p className="muted">Simple monthly public report for members.</p>
+        <h2>{t.transparencyReport}</h2>
+        <p className="muted">{t.transparencyText}</p>
         <div className="feature-grid">
-          <MiniCard icon={Wallet} title="Income" value="7,500" />
-          <MiniCard icon={ArrowUpRight} title="Payout" value="7,500" />
-          <MiniCard icon={Clock3} title="Pending" value="2" />
-          <MiniCard icon={CheckCircle2} title="Paid" value="13" />
+          <MiniCard icon={Wallet} title={t.income} value="7,500" />
+          <MiniCard icon={ArrowUpRight} title={t.payout} value="7,500" />
+          <MiniCard icon={Clock3} title={t.pending} value="2" />
+          <MiniCard icon={CheckCircle2} title={t.paid} value="13" />
         </div>
-        <button className="primary full">Export Report</button>
+        <button className="primary full">{t.exportReport}</button>
       </div>
       <div className="card">
-        <h3>Governance</h3>
-        <p className="muted">All key decisions require majority voting. Large rule changes require 70% approval.</p>
-        <button className="secondary full"><Settings size={16} /> Open Rules</button>
+        <h3>{t.governance}</h3>
+        <p className="muted">{t.governanceText}</p>
+        <button className="secondary full"><Settings size={16} /> {t.openRules}</button>
       </div>
     </motion.div>
   );
@@ -291,11 +415,11 @@ function FundRow({ label, value, percent }) {
   );
 }
 
-function PaymentMember({ name, status }) {
+function PaymentMember({ name, status, t }) {
   return (
     <div className="payment-member">
       <div className="person compact"><div className="avatar tiny-avatar">{name[0]}</div><b>{name}</b></div>
-      <span className={status === 'Paid' ? 'pill ok' : 'pill warn'}>{status}</span>
+      <span className={status === 'Paid' ? 'pill ok' : 'pill warn'}>{status === 'Paid' ? t.paid : t.pending}</span>
     </div>
   );
 }

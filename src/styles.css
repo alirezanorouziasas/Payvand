@@ -10,3 +10,13 @@
 .glass{text-align:left}
 @media (min-width:700px){.hero-logo{margin:0 0 18px 0;width:300px}.glass{text-align:left}}
 @media (max-width:420px){.hero-logo{width:230px}}
+
+.header-actions{display:flex;gap:8px;align-items:center}
+.lang-btn{height:38px;border:0;border-radius:16px;background:rgba(255,255,255,.16);color:white;padding:0 10px;font-weight:800;display:flex;align-items:center;gap:6px}
+.rtl{font-family:Tahoma,Inter,ui-sans-serif,system-ui,sans-serif}
+.rtl .brand,.rtl .header-actions,.rtl .person,.rtl .split,.rtl .payment-member,.rtl .member,.rtl .donation{direction:rtl}
+.rtl .bottom-nav{direction:rtl}
+.rtl .hero-logo{margin-left:auto;margin-right:auto}
+.rtl .glass{text-align:right}
+.rtl input{text-align:right}
+@media (max-width:420px){.header-actions{gap:5px}.lang-btn{height:34px;padding:0 8px;font-size:12px}}
