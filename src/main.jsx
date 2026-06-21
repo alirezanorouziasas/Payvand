@@ -1,269 +1,303 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import {
-  Home, Users, Wallet, BarChart3, Bell, CheckCircle2, Clock3, HandHeart, Lock,
-  LogIn, Upload, UserPlus, Download, ClipboardList, Scale, ShieldCheck, Eye,
-  Check, Ban, FileText, Smartphone, CreditCard, Activity, RefreshCw
-} from 'lucide-react';
+import { Home, Users, Wallet, BarChart3, ShieldCheck, Bell, ArrowUpRight, CheckCircle2, Clock3, Leaf, HandHeart, Settings, Plus, LogIn, HeartHandshake } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { demoMode, signIn, signUp, signOut, getSession } from './lib/supabase';
-import { list, insert, update, uploadFile, audit, paymentOptions } from './lib/api';
 import './styles.css';
 
-const ownerEmail = 'owner@payvand.app';
+const members = [
+  { name: 'Ali', status: 'Paid', score: 94 },
+  { name: 'Sara', status: 'Paid', score: 91 },
+  { name: 'Reza', status: 'Pending', score: 82 },
+  { name: 'Mina', status: 'Paid', score: 88 },
+];
 
-function App() {
-  const [tab, setTab] = useState('home');
-  const [user, setUser] = useState({ email: ownerEmail, role: 'owner', name: 'Alireza' });
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState('');
-  const [data, setData] = useState({ members: [], payments: [], donations: [], cases: [], queue: [], audit_logs: [] });
+const queue = [
+  { month: 'June', member: 'Sara', amount: '7,500 NOK', active: true },
+  { month: 'July', member: 'Reza', amount: '7,500 NOK' },
+  { month: 'August', member: 'Mina', amount: '7,500 NOK' },
+];
 
-  const isOwner = user?.role === 'owner' || user?.email === ownerEmail;
-  const emergencyFund = 1200 + data.donations.reduce((s, d) => s + Number(d.amount || 0), 0);
-  const pendingPayments = data.payments.filter(p => p.status === 'pending').length;
-  const pendingCases = data.cases.filter(c => c.status === 'pending').length;
-  const nextReceiver = data.queue.find(q => q.status === 'confirmed') || data.queue[0];
+const donations = [
+  { donor: 'Anonymous', amount: '250 NOK', date: 'Today' },
+  { donor: 'Nora', amount: '500 NOK', date: 'Yesterday' },
+  { donor: 'Anonymous', amount: '100 NOK', date: 'May 14' },
+];
 
-  function show(msg) { setToast(msg); setTimeout(() => setToast(''), 2600); }
-
-  async function load() {
-    setLoading(true);
-    try {
-      const [members, payments, donations, cases, queue, audit_logs] = await Promise.all([
-        list('members'), list('payments'), list('donations'), list('cases'), list('queue'), list('audit_logs')
-      ]);
-      setData({ members, payments, donations, cases, queue, audit_logs });
-    } catch (e) { show(e.message); }
-    setLoading(false);
-  }
-
-  useEffect(() => { load(); }, []);
-
-  async function approve(table, id, label) {
-    await update(table, id, { status: 'approved' });
-    await audit(`Approved ${label}: ${id}`, user.email);
-    await load();
-    show('Approved.');
-  }
-  async function reject(table, id, label) {
-    await update(table, id, { status: 'rejected' });
-    await audit(`Rejected ${label}: ${id}`, user.email);
-    await load();
-    show('Rejected.');
-  }
-
-  const props = { tab, setTab, user, setUser, data, load, isOwner, emergencyFund, nextReceiver, pendingPayments, pendingCases, show, approve, reject };
-
+function PayvandApp() {
+  const [tab, setTab] = useState('landing');
   const nav = [
-    ['home', Home, 'Home'],
-    ['fund', Wallet, 'Fund'],
-    ['cases', ClipboardList, 'Cases'],
-    ['admin', Lock, 'Admin'],
-    ['analytics', BarChart3, 'Stats'],
+    { id: 'home', icon: Home, label: 'Home' },
+    { id: 'fund', icon: Wallet, label: 'Fund' },
+    { id: 'donate', icon: HandHeart, label: 'Donate' },
+    { id: 'members', icon: Users, label: 'Members' },
+    { id: 'reports', icon: BarChart3, label: 'Reports' },
   ];
+
+  const appTabs = ['home', 'fund', 'donate', 'members', 'reports'];
 
   return (
     <div className="page">
       <div className="phone">
         <div className="hero-bg" />
         <div className="content">
-          <Header setTab={setTab} user={user} show={show} loading={loading} load={load} />
-          {demoMode && <div className="demo">Demo mode: connect Supabase env variables for real database, auth, storage, RLS and audit logs.</div>}
-          {tab === 'home' && <HomeScreen {...props} />}
-          {tab === 'auth' && <AuthScreen {...props} />}
-          {tab === 'fund' && <FundScreen {...props} />}
-          {tab === 'cases' && <CasesScreen {...props} />}
-          {tab === 'donate' && <DonateScreen {...props} />}
-          {tab === 'admin' && <AdminScreen {...props} />}
-          {tab === 'analytics' && <AnalyticsScreen {...props} />}
-          {tab === 'governance' && <GovernanceScreen />}
+          <Header setTab={setTab} />
+          {tab === 'landing' && <LandingScreen setTab={setTab} />}
+          {tab === 'login' && <LoginScreen setTab={setTab} />}
+          {tab === 'home' && <HomeScreen />}
+          {tab === 'fund' && <FundScreen />}
+          {tab === 'donate' && <DonateScreen />}
+          {tab === 'members' && <MembersScreen />}
+          {tab === 'reports' && <ReportsScreen />}
         </div>
-        <nav className="bottom-nav">
-          {nav.map(([id, Icon, label]) => (
-            <button key={id} onClick={() => setTab(id)} className={tab === id ? 'nav active' : 'nav'}>
-              <Icon size={20} /><span>{label}</span>
-            </button>
-          ))}
-        </nav>
-        {toast && <div className="toast">{toast}</div>}
+
+        {appTabs.includes(tab) && (
+          <nav className="bottom-nav">
+            {nav.map((item) => {
+              const Icon = item.icon;
+              const active = tab === item.id;
+              return (
+                <button key={item.id} onClick={() => setTab(item.id)} className={active ? 'nav-item active' : 'nav-item'}>
+                  <span><Icon size={20} /></span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </div>
   );
 }
 
-function Header({ setTab, user, show, loading, load }) {
+function Header({ setTab }) {
   return (
     <header className="header">
-      <button className="brand" onClick={() => setTab('home')}>
-        <img src="/logo.svg" alt="Payvand" />
-        <div><h1><span>Pay</span>vand</h1><p>{user?.role || 'guest'} access</p></div>
-      </button>
-      <div className="header-actions">
-        <button onClick={load} className="icon">{loading ? <RefreshCw className="spin" size={18}/> : <RefreshCw size={18}/>}</button>
-        <button onClick={() => show('Push notifications are scaffolded. Enable service worker later.')} className="icon"><Bell size={18}/></button>
+      <div className="brand">
+        <div className="logo"><Leaf size={26} /></div>
+        <div>
+          <h1><span>Pay</span>vand</h1>
+          <p>رشد از طریق همکاری</p>
+        </div>
       </div>
+      <button className="icon-btn" onClick={() => setTab('login')}><Bell size={20} /></button>
     </header>
   );
 }
 
-function HomeScreen({ setTab, emergencyFund, nextReceiver, pendingPayments, pendingCases, data }) {
-  return <motion.div className="stack" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card>
-      <div className="split"><div><p className="muted">Current rotating fund</p><h2>{nextReceiver?.amount || 7500} NOK</h2><p className="tiny">Next payout: {nextReceiver?.member_name || 'Not set'}</p></div><Wallet className="big-icon"/></div>
-      <div className="actions"><button className="primary" onClick={() => setTab('fund')}>Submit Payment</button><button className="secondary" onClick={() => setTab('donate')}>Donate</button></div>
-    </Card>
-    <div className="grid2">
-      <Mini icon={HandHeart} title="Emergency Fund" value={`${emergencyFund} NOK`} />
-      <Mini icon={Clock3} title="Pending Approvals" value={pendingPayments + pendingCases} />
+function LandingScreen({ setTab }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack landing">
+      <div className="card glass">
+        <HeartHandshake size={42} />
+        <h2>Community fund, built on trust.</h2>
+        <p>Payvand helps members manage a transparent rotating fund, emergency support, donations, queue order, and monthly reports.</p>
+        <button className="primary" onClick={() => setTab('login')}>Get Started</button>
+        <button className="secondary" onClick={() => setTab('donate')}>Donate as Guest</button>
+      </div>
+      <div className="feature-grid">
+        <MiniCard icon={Wallet} title="Monthly Pool" value="7,500" />
+        <MiniCard icon={ShieldCheck} title="Trust System" value="92%" />
+        <MiniCard icon={HandHeart} title="Emergency" value="2,050" />
+        <MiniCard icon={BarChart3} title="Reports" value="Open" />
+      </div>
+    </motion.div>
+  );
+}
+
+function LoginScreen({ setTab }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack login">
+      <div className="card">
+        <h2>Login / Register</h2>
+        <p className="muted">MVP demo screen. Later this connects to Supabase Auth.</p>
+        <input placeholder="Email address" />
+        <input placeholder="Password" type="password" />
+        <button className="primary" onClick={() => setTab('home')}><LogIn size={18} /> Continue</button>
+        <button className="secondary" onClick={() => setTab('landing')}>Back</button>
+      </div>
+    </motion.div>
+  );
+}
+
+function HomeScreen() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack">
+      <div className="card">
+        <div className="split">
+          <div>
+            <p className="muted">Current Pool</p>
+            <h2>7,500 NOK</h2>
+            <p className="tiny">15 members × 500 NOK</p>
+          </div>
+          <div className="soft-icon"><Wallet /></div>
+        </div>
+        <div className="actions">
+          <button className="primary">Pay Monthly</button>
+          <button className="secondary">View Queue</button>
+        </div>
+      </div>
+      <div className="feature-grid">
+        <MiniCard icon={ShieldCheck} title="Trust Score" value="92%" />
+        <MiniCard icon={HandHeart} title="Emergency Fund" value="2,050 NOK" />
+      </div>
+      <div className="card">
+        <div className="split mb">
+          <h3>Next Receiver</h3>
+          <span className="pill ok">Confirmed</span>
+        </div>
+        <div className="person">
+          <div className="avatar">S</div>
+          <div><b>Sara</b><p>June payout · 7,500 NOK</p></div>
+          <ArrowUpRight className="muted-icon" />
+        </div>
+      </div>
+      <h3 className="section">Monthly Queue</h3>
+      {queue.map((q) => <QueueItem key={q.month} {...q} />)}
+    </motion.div>
+  );
+}
+
+function FundScreen() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
+      <div className="card">
+        <h2>Fund Management</h2>
+        <p className="muted">Track payments, payouts, and reserves.</p>
+        <FundRow label="Collected this month" value="6,500 NOK" percent="87%" />
+        <FundRow label="Pending" value="1,000 NOK" percent="13%" />
+        <FundRow label="Emergency reserve" value="2,050 NOK" percent="28%" />
+        <button className="primary full">Add Transaction</button>
+      </div>
+      <div className="card">
+        <h3>Payment Status</h3>
+        {members.map((m) => <PaymentMember key={m.name} {...m} />)}
+      </div>
+    </motion.div>
+  );
+}
+
+function DonateScreen() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
+      <div className="card">
+        <div className="split">
+          <div>
+            <p className="muted">Open Donation</p>
+            <h2>Support Emergency Fund</h2>
+            <p className="muted">Non-members can donate here. All donations go directly to emergency support.</p>
+          </div>
+          <div className="soft-icon"><HandHeart /></div>
+        </div>
+        <div className="balance">
+          <p>Emergency Fund Balance</p>
+          <h2>2,050 NOK</h2>
+          <span>Includes 850 NOK external donations</span>
+        </div>
+        <div className="amount-grid">
+          {['100', '250', '500'].map((amount) => <button key={amount}>{amount} NOK</button>)}
+        </div>
+        <div className="custom-amount"><span>Custom amount</span><b>0 NOK</b></div>
+        <button className="primary full green">Donate to Emergency Fund</button>
+        <button className="secondary full">Share Donation Link</button>
+      </div>
+      <div className="card">
+        <div className="split mb">
+          <h3>Recent Donations</h3>
+          <span className="tiny">Public report</span>
+        </div>
+        {donations.map((d, i) => (
+          <div className="donation" key={i}>
+            <div className="person compact">
+              <div className="mini-icon"><HandHeart size={16} /></div>
+              <div><b>{d.donor}</b><p>{d.date}</p></div>
+            </div>
+            <b className="green-text">{d.amount}</b>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function MembersScreen() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
+      <div className="split">
+        <h2 className="white-title">Members</h2>
+        <button className="white-btn"><Plus size={18} /></button>
+      </div>
+      <div className="card">
+        {members.map((m) => (
+          <div className="member" key={m.name}>
+            <div className="avatar small">{m.name[0]}</div>
+            <div><b>{m.name}</b><p>Trust Score: {m.score}</p></div>
+            <span className={m.status === 'Paid' ? 'pill ok' : 'pill warn'}>{m.status}</span>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function ReportsScreen() {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
+      <div className="card">
+        <h2>Transparency Report</h2>
+        <p className="muted">Simple monthly public report for members.</p>
+        <div className="feature-grid">
+          <MiniCard icon={Wallet} title="Income" value="7,500" />
+          <MiniCard icon={ArrowUpRight} title="Payout" value="7,500" />
+          <MiniCard icon={Clock3} title="Pending" value="2" />
+          <MiniCard icon={CheckCircle2} title="Paid" value="13" />
+        </div>
+        <button className="primary full">Export Report</button>
+      </div>
+      <div className="card">
+        <h3>Governance</h3>
+        <p className="muted">All key decisions require majority voting. Large rule changes require 70% approval.</p>
+        <button className="secondary full"><Settings size={16} /> Open Rules</button>
+      </div>
+    </motion.div>
+  );
+}
+
+function MiniCard({ icon: Icon, title, value }) {
+  return (
+    <div className="mini-card">
+      <Icon size={20} />
+      <p>{title}</p>
+      <b>{value}</b>
     </div>
-    <Card>
-      <h3>Next Receiver</h3>
-      <div className="row"><div className="avatar">{(nextReceiver?.member_name || 'S')[0]}</div><div><b>{nextReceiver?.member_name || 'Sara'}</b><p>{nextReceiver?.payout_month || 'June'} · {nextReceiver?.status || 'confirmed'}</p></div></div>
-    </Card>
-    <Card><h3>Quick Actions</h3><button className="secondary full" onClick={() => setTab('governance')}>Read Terms & Governance</button><button className="secondary full" onClick={() => setTab('analytics')}>Open Analytics</button></Card>
-  </motion.div>
+  );
 }
 
-function AuthScreen({ setUser, setTab, show }) {
-  const [mode, setMode] = useState('signin');
-  const [form, setForm] = useState({ email: '', password: '', name: '' });
-  async function submit() {
-    try {
-      if (demoMode) {
-        setUser({ email: form.email || ownerEmail, role: (form.email || '').includes('owner') ? 'owner' : 'member', name: form.name || 'User' });
-      } else {
-        if (mode === 'signup') await signUp(form.email, form.password, form.name);
-        else await signIn(form.email, form.password);
-      }
-      show('Authenticated.');
-      setTab('home');
-    } catch(e) { show(e.message); }
-  }
-  return <Screen title="Authentication" subtitle="Real Supabase authentication is wired. Add env variables to enable.">
-    <input placeholder="Full name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
-    <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/>
-    <input placeholder="Password" type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
-    <button className="primary full" onClick={submit}><LogIn size={17}/> {mode === 'signup' ? 'Sign up' : 'Sign in'}</button>
-    <button className="secondary full" onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}>{mode === 'signup' ? 'Switch to sign in' : 'Switch to sign up'}</button>
-  </Screen>
+function QueueItem({ month, member, amount, active }) {
+  return (
+    <div className={active ? 'queue active' : 'queue'}>
+      <div className="month">{month.slice(0, 3)}</div>
+      <div><b>{member}</b><p>{amount}</p></div>
+      {active ? <CheckCircle2 className="green-text" /> : <Clock3 className="muted-icon" />}
+    </div>
+  );
 }
 
-function FundScreen({ data, load, show }) {
-  const [file, setFile] = useState(null);
-  const [amount, setAmount] = useState('500');
-  async function submitReceipt() {
-    try {
-      let url = '';
-      if (file) {
-        const uploaded = await uploadFile('receipts', `receipts/${Date.now()}-${file.name}`, file);
-        url = uploaded.publicUrl;
-      }
-      await insert('payments', { member_name: 'Current user', amount: Number(amount), method: 'Manual/Vipps/Bank', receipt_url: url || 'no file uploaded', status: 'pending' });
-      await audit('Submitted payment receipt', 'current user');
-      await load();
-      show('Receipt submitted.');
-    } catch(e) { show(e.message); }
-  }
-  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Payment & File Upload</h2><p className="muted">Upload a receipt. Owner approves it in Admin.</p>
-      <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))} placeholder="Amount NOK"/>
-      <input type="file" onChange={e=>setFile(e.target.files?.[0])}/>
-      <button className="primary full" onClick={submitReceipt}><Upload size={17}/> Submit Receipt</button>
-    </Card>
-    <Card><h3>Payment Records</h3>{data.payments.map(p => <Row key={p.id} title={`${p.member_name || 'Member'} · ${p.amount} NOK`} sub={`${p.status} · ${p.receipt_url || 'no receipt'}`} status={p.status}/>)}</Card>
-  </motion.div>
+function FundRow({ label, value, percent }) {
+  return (
+    <div className="fund-row">
+      <div><span>{label}</span><b>{value}</b></div>
+      <div className="bar"><span style={{ width: percent }} /></div>
+    </div>
+  );
 }
 
-function CasesScreen({ data, load, show }) {
-  const [form, setForm] = useState({ title:'', description:'', requested_amount:'', urgency:'Medium' });
-  const [file, setFile] = useState(null);
-  async function submitCase() {
-    try {
-      let doc = '';
-      if (file) {
-        const uploaded = await uploadFile('case-documents', `cases/${Date.now()}-${file.name}`, file);
-        doc = uploaded.publicUrl;
-      }
-      await insert('cases', { ...form, requested_amount: Number(form.requested_amount || 0), member_name: 'Current user', document_url: doc, status: 'pending' });
-      await audit(`Submitted emergency case: ${form.title}`, 'current user');
-      await load();
-      show('Case submitted.');
-      setForm({ title:'', description:'', requested_amount:'', urgency:'Medium' });
-    } catch(e) { show(e.message); }
-  }
-  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Emergency Case</h2><p className="muted">Submit a case with description and proof documents.</p>
-      <input placeholder="Case title" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
-      <textarea placeholder="Short description" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-      <input placeholder="Requested amount NOK" value={form.requested_amount} onChange={e=>setForm({...form,requested_amount:e.target.value.replace(/\D/g,'')})}/>
-      <select value={form.urgency} onChange={e=>setForm({...form,urgency:e.target.value})}><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select>
-      <input type="file" onChange={e=>setFile(e.target.files?.[0])}/>
-      <button className="primary full" onClick={submitCase}><FileText size={17}/> Submit Case</button>
-    </Card>
-    <Card><h3>Cases</h3>{data.cases.map(c => <Row key={c.id} title={`${c.title} · ${c.requested_amount} NOK`} sub={`${c.member_name || 'Member'} · ${c.urgency} · ${c.status}`} status={c.status}/>)}</Card>
-  </motion.div>
+function PaymentMember({ name, status }) {
+  return (
+    <div className="payment-member">
+      <div className="person compact"><div className="avatar tiny-avatar">{name[0]}</div><b>{name}</b></div>
+      <span className={status === 'Paid' ? 'pill ok' : 'pill warn'}>{status}</span>
+    </div>
+  );
 }
 
-function DonateScreen({ data, load, show }) {
-  const [amount, setAmount] = useState('250');
-  const opts = paymentOptions();
-  async function donate() {
-    try {
-      await insert('donations', { donor_name: 'Guest', amount: Number(amount), emergency_fund: true });
-      await audit(`Donation submitted: ${amount} NOK`, 'guest');
-      await load();
-      show('Donation recorded.');
-    } catch(e) { show(e.message); }
-  }
-  return <Screen title="Donate to Emergency Fund" subtitle="Guest donations are separate from member rotation funds.">
-    <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))} placeholder="Amount NOK"/>
-    <button className="primary full" onClick={donate}><HandHeart size={17}/> Record Donation</button>
-    {opts.stripe && <a className="secondary full link" href={opts.stripe} target="_blank">Pay by Stripe</a>}
-    <p className="muted">Vipps: {opts.vipps || 'add VITE_VIPPS_NUMBER'}</p>
-    <p className="muted">Bank: {opts.bank || 'add VITE_BANK_ACCOUNT'}</p>
-  </Screen>
-}
-
-function AdminScreen({ isOwner, data, approve, reject }) {
-  if (!isOwner) return <Screen title="Owner Only" subtitle="Only owner/admin can access approvals and sensitive records." icon={Lock}/>;
-  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Admin Dashboard</h2><p className="muted">Approve payments, members, emergency cases and review audit logs.</p></Card>
-    <Card><h3>Pending Payments</h3>{data.payments.map(p => <ApproveRow key={p.id} title={`${p.member_name || 'Member'} · ${p.amount} NOK`} sub={`${p.status} · ${p.receipt_url || ''}`} onApprove={()=>approve('payments', p.id, 'payment')} onReject={()=>reject('payments', p.id, 'payment')}/>)}</Card>
-    <Card><h3>Members</h3>{data.members.map(m => <ApproveRow key={m.id} title={m.name} sub={`${m.email || ''} · ${m.status}`} onApprove={()=>approve('members', m.id, 'member')} onReject={()=>reject('members', m.id, 'member')}/>)}</Card>
-    <Card><h3>Emergency Cases</h3>{data.cases.map(c => <ApproveRow key={c.id} title={c.title} sub={`${c.status} · ${c.requested_amount} NOK`} onApprove={()=>approve('cases', c.id, 'case')} onReject={()=>reject('cases', c.id, 'case')}/>)}</Card>
-    <Card><h3>Audit Logs</h3>{data.audit_logs.map(a => <Row key={a.id} title={a.action} sub={new Date(a.created_at).toLocaleString()} />)}</Card>
-  </motion.div>
-}
-
-function AnalyticsScreen({ data, emergencyFund, exportReport }) {
-  const approvedPayments = data.payments.filter(p => p.status === 'approved').length;
-  const pending = data.payments.filter(p => p.status === 'pending').length + data.cases.filter(c => c.status === 'pending').length;
-  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Analytics</h2><p className="muted">Real dashboard from database values.</p><div className="grid2"><Mini icon={Users} title="Members" value={data.members.length}/><Mini icon={Wallet} title="Approved payments" value={approvedPayments}/><Mini icon={HandHeart} title="Emergency fund" value={emergencyFund}/><Mini icon={Clock3} title="Pending actions" value={pending}/></div><button className="primary full" onClick={exportReport}><Download size={17}/> Export CSV</button></Card>
-  </motion.div>
-}
-
-function GovernanceScreen() {
-  return <Screen title="Governance & Terms" subtitle="Payvand is a voluntary community support network, not a bank, investment product, lottery, or profit-making scheme." icon={Scale}>
-    <Policy title="Terms & Conditions" text="Members must pay agreed contributions on time. After receiving a payout, members continue paying until the round ends. False receipts or documents may lead to removal."/>
-    <Policy title="Privacy Policy" text="Only owner/admin should access sensitive member records, receipts and emergency documents. Public reports must not expose private details."/>
-    <Policy title="Emergency Fund Policy" text="Guest donations go to the emergency fund. Cases require description, requested amount, urgency and proof documents. Approval depends on evidence and fund balance."/>
-    <Policy title="Rotating Fund Rules" text="The queue is visible to members and editable only by owner/admin. Payouts require approved membership and up-to-date payment status."/>
-  </Screen>
-}
-
-function exportReport() {
-  alert('Use Analytics export inside the app.');
-}
-
-function Screen({ title, subtitle, icon: Icon, children }) {
-  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}><Card>{Icon && <Icon className="big-icon"/>}<h2>{title}</h2><p className="muted">{subtitle}</p>{children}</Card></motion.div>
-}
-function Card({ children }) { return <div className="card">{children}</div> }
-function Mini({ icon: Icon, title, value }) { return <div className="mini"><Icon size={20}/><p>{title}</p><b>{value}</b></div> }
-function Policy({ title, text }) { return <div className="policy"><b>{title}</b><p>{text}</p></div> }
-function Row({ title, sub, status }) { return <div className="row line"><div><b>{title}</b><p>{sub}</p></div>{status && <span className={`pill ${status}`}>{status}</span>}</div> }
-function ApproveRow({ title, sub, onApprove, onReject }) { return <div className="row line"><div><b>{title}</b><p>{sub}</p></div><div className="row-actions"><button className="okbtn" onClick={onApprove}><Check size={15}/></button><button className="badbtn" onClick={onReject}><Ban size={15}/></button></div></div> }
-
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(<PayvandApp />);
