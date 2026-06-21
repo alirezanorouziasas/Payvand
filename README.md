@@ -1,62 +1,47 @@
-# Payvand MVP
+# Payvand MVP — Supabase Connected
 
-A free-launch ready React/Vite prototype for Payvand.
+This version connects the Payvand MVP to Supabase.
 
-## Run locally
-```bash
-npm install
-npm run dev
+## 1. Create Supabase project
+Create a project in Supabase.
+
+## 2. Run database schema
+Open Supabase → SQL Editor → New query.
+Copy everything from:
+
+```text
+supabase/schema.sql
 ```
 
-## Deploy free on Vercel
-1. Create a new GitHub repository.
-2. Upload/push these files.
-3. Go to Vercel.com and import the GitHub repository.
-4. Keep defaults and click Deploy.
+Run it.
 
-## Current MVP screens
-- Landing page
-- Login/Register demo
-- Home dashboard
-- Fund management
-- Donate to Emergency Fund
-- Members
-- Reports
+## 3. Add Vercel Environment Variables
+In Vercel → Project → Settings → Environment Variables, add:
 
-## Next production steps
-- Connect Supabase Auth
-- Add database tables
-- Add admin approval workflow
-- Add manual payment receipt upload
-- Add legal pages: Terms, Privacy, Donation Policy
+```text
+VITE_SUPABASE_URL = your Supabase project URL
+VITE_SUPABASE_ANON_KEY = your anon public key
+```
 
+Add them to Production, Preview, and Development.
 
-## Responsive update
-This version automatically adapts to:
-- Mobile screens
-- Tablets
-- Laptop/desktop screens
+## 4. Deploy
+Push/upload this project to GitHub and redeploy on Vercel.
 
-The layout changes from a mobile app view to a wider dashboard-style layout on larger screens.
+## 5. Build settings in Vercel
+Framework Preset: Vite  
+Build Command: npm run build  
+Output Directory: dist  
+Install Command: npm install  
+Root Directory: ./
 
-
-## Final update
-This version includes:
-- Final Payvand logo image in `/public/payvand-logo.png`
-- Responsive layout for mobile, tablet, and laptop
-- Donate tab connected conceptually to Emergency Fund
-- Dashboard, Fund, Members, Reports, Landing and Login screens
-
-## Important GitHub upload note
-Upload the contents of this folder directly to the root of your GitHub repository.
-Do not upload only the ZIP file.
-
-
-## Update
-The small header subtitle has been changed from Persian to English: Growth through collaboration.
-
-
-## Bilingual update
-This version includes English and Persian UI.
-Use the language button in the header to switch between EN and FA.
-Persian mode also switches the interface to RTL.
+## Included features
+- English/Persian language switcher
+- RTL mode for Persian
+- Supabase Auth login/register
+- Members loaded from Supabase
+- Queue loaded from Supabase
+- Donations saved to Supabase
+- Donations automatically added to Emergency Fund ledger
+- Emergency Fund balance calculated from Supabase
+- Responsive layout

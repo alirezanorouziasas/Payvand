@@ -20,3 +20,5 @@
 .rtl .glass{text-align:right}
 .rtl input{text-align:right}
 @media (max-width:420px){.header-actions{gap:5px}.lang-btn{height:34px;padding:0 8px;font-size:12px}}
+
+.status-line{display:inline-flex;margin:-12px 0 14px 0;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.18);color:white;font-size:12px;font-weight:700}
