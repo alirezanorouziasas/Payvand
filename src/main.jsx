@@ -73,7 +73,7 @@ function Header({ setTab }) {
   return (
     <header className="header">
       <div className="brand">
-        <div className="logo"><Leaf size={26} /></div>
+        <div className="logo logo-img"><img src="/payvand-logo.png" alt="Payvand logo" /></div>
         <div>
           <h1><span>Pay</span>vand</h1>
           <p>رشد از طریق همکاری</p>
@@ -88,7 +88,7 @@ function LandingScreen({ setTab }) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack landing">
       <div className="card glass">
-        <HeartHandshake size={42} />
+        <img className="hero-logo" src="/payvand-logo.png" alt="Payvand logo" />
         <h2>Community fund, built on trust.</h2>
         <p>Payvand helps members manage a transparent rotating fund, emergency support, donations, queue order, and monthly reports.</p>
         <button className="primary" onClick={() => setTab('login')}>Get Started</button>

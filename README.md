@@ -38,3 +38,15 @@ This version automatically adapts to:
 - Laptop/desktop screens
 
 The layout changes from a mobile app view to a wider dashboard-style layout on larger screens.
+
+
+## Final update
+This version includes:
+- Final Payvand logo image in `/public/payvand-logo.png`
+- Responsive layout for mobile, tablet, and laptop
+- Donate tab connected conceptually to Emergency Fund
+- Dashboard, Fund, Members, Reports, Landing and Login screens
+
+## Important GitHub upload note
+Upload the contents of this folder directly to the root of your GitHub repository.
+Do not upload only the ZIP file.
