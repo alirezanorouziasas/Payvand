@@ -45,3 +45,26 @@ Root Directory: ./
 - Donations automatically added to Emergency Fund ledger
 - Emergency Fund balance calculated from Supabase
 - Responsive layout
+
+
+## Button functionality update
+The following buttons now work:
+- Pay Monthly registers a payment in Supabase
+- View Queue scrolls to the queue section
+- Add Transaction adds a reserve transaction to Emergency Fund
+- Share Donation Link copies/shares the donation URL
+- Add Member creates a pending member
+- Export Report downloads a CSV report
+- Open Rules shows the governance rules
+
+
+## Final emergency-case update
+This consolidated version includes all latest changes:
+- Supabase-connected bilingual app
+- Responsive layout
+- Fixed action buttons
+- Donate to Emergency Fund
+- Submit Emergency Case section
+- emergency_cases Supabase table and policies
+
+Important: run the updated `supabase/schema.sql` again in Supabase SQL Editor. It uses `create table if not exists`, so it will not delete your existing data.

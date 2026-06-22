@@ -25,6 +25,22 @@ const translations = {
     publicReport: 'Public report', transparencyReport: 'Transparency Report', transparencyText: 'Simple monthly public report for members.',
     income: 'Income', payout: 'Payout', exportReport: 'Export Report', governance: 'Governance',
     governanceText: 'All key decisions require majority voting. Large rule changes require 70% approval.', openRules: 'Open Rules',
+    emergencyCase: 'Emergency Case',
+    submitEmergencyCase: 'Submit Emergency Case',
+    emergencyCaseText: 'Submit a confidential request for emergency support. The committee will review it.',
+    requesterName: 'Requester name',
+    contactInfo: 'Contact information',
+    requestedAmount: 'Requested amount',
+    urgency: 'Urgency',
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+    reason: 'Reason',
+    caseDescription: 'Description',
+    submitCase: 'Submit Case',
+    recentCases: 'Recent Emergency Cases',
+    caseSubmitted: 'Emergency case submitted for review.',
+    underReview: 'Under review',
     language: 'FA', connected: 'Supabase connected', demo: 'Demo mode: add Supabase variables', logout: 'Logout'
   },
   fa: {
@@ -46,6 +62,22 @@ const translations = {
     publicReport: 'گزارش عمومی', transparencyReport: 'گزارش شفافیت', transparencyText: 'گزارش ماهانه ساده و شفاف برای اعضا.',
     income: 'ورودی', payout: 'پرداختی', exportReport: 'خروجی گزارش', governance: 'قوانین و تصمیم‌گیری',
     governanceText: 'تصمیمات مهم با رأی اکثریت انجام می‌شود. تغییرات بزرگ نیاز به ۷۰٪ رأی موافق دارد.', openRules: 'مشاهده قوانین',
+    emergencyCase: 'درخواست اضطراری',
+    submitEmergencyCase: 'ثبت درخواست اضطراری',
+    emergencyCaseText: 'درخواست محرمانه برای حمایت اضطراری ثبت کنید. کمیته آن را بررسی می‌کند.',
+    requesterName: 'نام درخواست‌کننده',
+    contactInfo: 'اطلاعات تماس',
+    requestedAmount: 'مبلغ درخواستی',
+    urgency: 'فوریت',
+    low: 'کم',
+    medium: 'متوسط',
+    high: 'زیاد',
+    reason: 'دلیل',
+    caseDescription: 'توضیح',
+    submitCase: 'ثبت درخواست',
+    recentCases: 'درخواست‌های اضطراری اخیر',
+    caseSubmitted: 'درخواست اضطراری برای بررسی ثبت شد.',
+    underReview: 'در حال بررسی',
     language: 'EN', connected: 'اتصال به Supabase فعال است', demo: 'حالت دمو: متغیرهای Supabase را اضافه کنید', logout: 'خروج'
   }
 };
@@ -69,6 +101,10 @@ const fallbackDonations = [
   { id: '3', donor_name: 'Anonymous', amount: 100, created_at: new Date().toISOString() },
 ];
 
+const fallbackEmergencyCases = [
+  { id: '1', requester_name: 'Anonymous', requested_amount: 1500, urgency: 'medium', status: 'under_review', created_at: new Date().toISOString() },
+];
+
 function PayvandApp() {
   const [tab, setTab] = useState('landing');
   const [lang, setLang] = useState('en');
@@ -77,6 +113,7 @@ function PayvandApp() {
   const [queue, setQueue] = useState(fallbackQueue);
   const [donations, setDonations] = useState(fallbackDonations);
   const [emergencyBalance, setEmergencyBalance] = useState(2050);
+  const [emergencyCases, setEmergencyCases] = useState(fallbackEmergencyCases);
   const [loading, setLoading] = useState(false);
 
   const t = translations[lang];
@@ -93,15 +130,17 @@ function PayvandApp() {
   async function loadData() {
     if (!isSupabaseConfigured) return;
     setLoading(true);
-    const [membersRes, donationsRes, emergencyRes, queueRes] = await Promise.all([
+    const [membersRes, donationsRes, emergencyRes, queueRes, emergencyCasesRes] = await Promise.all([
       supabase.from('members').select('*').order('created_at', { ascending: true }),
       supabase.from('donations').select('*').order('created_at', { ascending: false }).limit(10),
       supabase.from('emergency_fund').select('amount,type'),
-      supabase.from('queue').select('id, receive_month, amount, status, queue_position, members(full_name)').order('queue_position', { ascending: true })
+      supabase.from('queue').select('id, receive_month, amount, status, queue_position, members(full_name)').order('queue_position', { ascending: true }),
+      supabase.from('emergency_cases').select('*').order('created_at', { ascending: false }).limit(10)
     ]);
 
     if (!membersRes.error && membersRes.data?.length) setMembers(membersRes.data);
     if (!donationsRes.error && donationsRes.data?.length) setDonations(donationsRes.data);
+    if (!emergencyCasesRes?.error && emergencyCasesRes?.data?.length) setEmergencyCases(emergencyCasesRes.data);
 
     if (!emergencyRes.error && emergencyRes.data) {
       const total = emergencyRes.data.reduce((sum, row) => {
@@ -155,6 +194,121 @@ function PayvandApp() {
     alert('Donation registered in Emergency Fund.');
   }
 
+
+
+  async function handleEmergencyCase(payload) {
+    if (!payload.requesterName || !payload.contactInfo || !payload.requestedAmount || !payload.reason) {
+      return alert('Please complete requester name, contact, amount, and reason.');
+    }
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('emergency_cases').insert({
+        requester_name: payload.requesterName,
+        contact_info: payload.contactInfo,
+        requested_amount: Number(payload.requestedAmount),
+        urgency: payload.urgency || 'medium',
+        reason: payload.reason,
+        description: payload.description || '',
+        status: 'under_review'
+      });
+      if (error) return alert(error.message);
+    }
+
+    alert(t.caseSubmitted || 'Emergency case submitted.');
+    await loadData();
+  }
+
+  async function handlePayment() {
+    if (!members[0]) return alert('No member found');
+    const month = new Date().toLocaleString('en', { month: 'long' });
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('payments').insert({
+        member_id: members[0].id,
+        amount: 500,
+        payment_month: month,
+        payment_status: 'paid'
+      });
+      if (error) return alert(error.message);
+    }
+    alert('Payment registered.');
+    await loadData();
+  }
+
+  async function handleTransaction() {
+    const amount = prompt('Amount in NOK:');
+    if (!amount || Number(amount) <= 0) return;
+    const description = prompt('Description:', 'Manual transaction') || 'Manual transaction';
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('emergency_fund').insert({
+        type: 'reserve_in',
+        amount: Number(amount),
+        description
+      });
+      if (error) return alert(error.message);
+    }
+    alert('Transaction added.');
+    await loadData();
+  }
+
+  async function handleAddMember() {
+    const fullName = prompt('New member full name:');
+    if (!fullName) return;
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('members').insert({
+        full_name: fullName,
+        monthly_amount: 500,
+        trust_score: 80,
+        status: 'pending'
+      });
+      if (error) return alert(error.message);
+    }
+    alert('Member added.');
+    await loadData();
+  }
+
+  async function shareDonationLink() {
+    const url = `${window.location.origin}?tab=donate`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Payvand Donation', text: 'Support Payvand Emergency Fund', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('Donation link copied.');
+      }
+    } catch {
+      await navigator.clipboard.writeText(url);
+      alert('Donation link copied.');
+    }
+  }
+
+  function exportReport() {
+    const rows = [
+      ['Metric','Value'],
+      ['Members', members.length],
+      ['Income', members.length * 500],
+      ['Payout', members.length * 500],
+      ['Emergency Fund', emergencyBalance],
+      ['Pending', members.filter(m => m.status !== 'active').length]
+    ];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'payvand-report.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    alert('Report downloaded.');
+  }
+
+  function openRules() {
+    alert('Payvand rules:\n\n1. Members must pay monthly on time.\n2. After receiving payout, members continue payments until the cycle ends.\n3. Emergency donations are used only for approved support cases.\n4. Major rule changes require 70% approval.');
+  }
+
+  function viewQueue() {
+    const el = document.getElementById('monthly-queue');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   const nav = [
     { id: 'home', icon: Home, label: t.home },
     { id: 'fund', icon: Wallet, label: t.fund },
@@ -174,11 +328,11 @@ function PayvandApp() {
 
           {tab === 'landing' && <LandingScreen setTab={setTab} t={t} emergencyBalance={emergencyBalance} />}
           {tab === 'login' && <LoginScreen setTab={setTab} t={t} />}
-          {tab === 'home' && <HomeScreen t={t} members={members} queue={queue} emergencyBalance={emergencyBalance} />}
-          {tab === 'fund' && <FundScreen t={t} members={members} emergencyBalance={emergencyBalance} />}
-          {tab === 'donate' && <DonateScreen t={t} donations={donations} emergencyBalance={emergencyBalance} onDonate={handleDonation} />}
-          {tab === 'members' && <MembersScreen t={t} members={members} />}
-          {tab === 'reports' && <ReportsScreen t={t} members={members} emergencyBalance={emergencyBalance} />}
+          {tab === 'home' && <HomeScreen t={t} members={members} queue={queue} emergencyBalance={emergencyBalance} onPay={handlePayment} onViewQueue={viewQueue} />}
+          {tab === 'fund' && <FundScreen t={t} members={members} emergencyBalance={emergencyBalance} onAddTransaction={handleTransaction} />}
+          {tab === 'donate' && <DonateScreen t={t} donations={donations} emergencyCases={emergencyCases} emergencyBalance={emergencyBalance} onDonate={handleDonation} onShare={shareDonationLink} onEmergencyCase={handleEmergencyCase} />}
+          {tab === 'members' && <MembersScreen t={t} members={members} onAddMember={handleAddMember} />}
+          {tab === 'reports' && <ReportsScreen t={t} members={members} emergencyBalance={emergencyBalance} onExport={exportReport} onOpenRules={openRules} />}
         </div>
 
         {appTabs.includes(tab) && (
@@ -282,55 +436,111 @@ function LoginScreen({ setTab, t }) {
   );
 }
 
-function HomeScreen({ t, members, queue, emergencyBalance }) {
+function HomeScreen({ t, members, queue, emergencyBalance, onPay, onViewQueue }) {
   const currentPool = members.length * 500;
   const next = queue[0] || { member_name: 'Sara', receive_month: 'June', amount: 7500 };
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack">
       <div className="card">
         <div className="split"><div><p className="muted">{t.currentPool}</p><h2>{currentPool.toLocaleString()} NOK</h2><p className="tiny">{members.length} members × 500 NOK</p></div><div className="soft-icon"><Wallet /></div></div>
-        <div className="actions"><button className="primary">{t.payMonthly}</button><button className="secondary">{t.viewQueue}</button></div>
+        <div className="actions"><button className="primary" onClick={onPay}>{t.payMonthly}</button><button className="secondary" onClick={onViewQueue}>{t.viewQueue}</button></div>
       </div>
       <div className="feature-grid"><MiniCard icon={ShieldCheck} title={t.trustScore} value="92%" /><MiniCard icon={HandHeart} title={t.emergencyFund} value={`${emergencyBalance} NOK`} /></div>
       <div className="card"><div className="split mb"><h3>{t.nextReceiver}</h3><span className="pill ok">{t.confirmed}</span></div><div className="person"><div className="avatar">{next.member_name?.[0] || 'S'}</div><div><b>{next.member_name}</b><p>{next.receive_month} payout · {Number(next.amount).toLocaleString()} NOK</p></div><ArrowUpRight className="muted-icon" /></div></div>
-      <h3 className="section">{t.monthlyQueue}</h3>
+      <h3 className="section" id="monthly-queue">{t.monthlyQueue}</h3>
       {queue.map((q) => <QueueItem key={q.id} {...q} />)}
     </motion.div>
   );
 }
 
-function FundScreen({ t, members, emergencyBalance }) {
+function FundScreen({ t, members, emergencyBalance, onAddTransaction }) {
   const currentPool = members.length * 500;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
-      <div className="card"><h2>{t.fundManagement}</h2><p className="muted">{t.fundManagementText}</p><FundRow label={t.collected} value={`${currentPool.toLocaleString()} NOK`} percent="87%" /><FundRow label={t.pending} value="1,000 NOK" percent="13%" /><FundRow label={t.emergencyReserve} value={`${emergencyBalance} NOK`} percent="28%" /><button className="primary full">{t.addTransaction}</button></div>
+      <div className="card"><h2>{t.fundManagement}</h2><p className="muted">{t.fundManagementText}</p><FundRow label={t.collected} value={`${currentPool.toLocaleString()} NOK`} percent="87%" /><FundRow label={t.pending} value="1,000 NOK" percent="13%" /><FundRow label={t.emergencyReserve} value={`${emergencyBalance} NOK`} percent="28%" /><button className="primary full" onClick={onAddTransaction}>{t.addTransaction}</button></div>
       <div className="card"><h3>{t.paymentStatus}</h3>{members.map((m) => <PaymentMember key={m.id} member={m} t={t} />)}</div>
     </motion.div>
   );
 }
 
-function DonateScreen({ t, donations, emergencyBalance, onDonate }) {
+function DonateScreen({ t, donations, emergencyCases, emergencyBalance, onDonate, onShare, onEmergencyCase }) {
   const [amount, setAmount] = useState('');
   const [donorName, setDonorName] = useState('');
-  return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
-      <div className="card"><div className="split"><div><p className="muted">{t.openDonation}</p><h2>{t.supportEmergency}</h2><p className="muted">{t.donateText}</p></div><div className="soft-icon"><HandHeart /></div></div>
+  const [caseForm, setCaseForm] = useState({
+    requesterName: '',
+    contactInfo: '',
+    requestedAmount: '',
+    urgency: 'medium',
+    reason: '',
+    description: ''
+  });
+
+  function updateCaseField(field, value) {
+    setCaseForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function submitEmergencyCase() {
+    await onEmergencyCase(caseForm);
+    setCaseForm({
+      requesterName: '',
+      contactInfo: '',
+      requestedAmount: '',
+      urgency: 'medium',
+      reason: '',
+      description: ''
+    });
+  }
+
+  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space">
+    <div className="card">
+      <div className="split">
+        <div><p className="muted">{t.openDonation}</p><h2>{t.supportEmergency}</h2><p className="muted">{t.donateText}</p></div>
+        <div className="soft-icon"><HandHeart /></div>
+      </div>
       <div className="balance"><p>{t.emergencyBalance}</p><h2>{Number(emergencyBalance).toLocaleString()} NOK</h2><span>{t.externalDonations}</span></div>
       <div className="amount-grid">{['100', '250', '500'].map((a) => <button key={a} onClick={() => setAmount(a)}>{a} NOK</button>)}</div>
       <input placeholder={t.donorName} value={donorName} onChange={(e) => setDonorName(e.target.value)} />
       <input placeholder={t.customAmount} value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <button className="primary full green" onClick={() => onDonate({ donorName, amount })}>{t.donateButton}</button><button className="secondary full">{t.shareDonation}</button></div>
-      <div className="card"><div className="split mb"><h3>{t.recentDonations}</h3><span className="tiny">{t.publicReport}</span></div>{donations.map((d) => <div className="donation" key={d.id}><div className="person compact"><div className="mini-icon"><HandHeart size={16} /></div><div><b>{d.donor_name || 'Anonymous'}</b><p>{new Date(d.created_at).toLocaleDateString()}</p></div></div><b className="green-text">{Number(d.amount).toLocaleString()} NOK</b></div>)}</div>
-    </motion.div>
-  );
+      <button className="primary full green" onClick={() => onDonate({ donorName, amount })}>{t.donateButton}</button>
+      <button className="secondary full" onClick={onShare}>{t.shareDonation}</button>
+    </div>
+
+    <div className="card emergency-case-card">
+      <div className="split">
+        <div><p className="muted">{t.emergencyCase}</p><h2>{t.submitEmergencyCase}</h2><p className="muted">{t.emergencyCaseText}</p></div>
+        <div className="soft-icon"><ShieldCheck /></div>
+      </div>
+      <input placeholder={t.requesterName} value={caseForm.requesterName} onChange={(e) => updateCaseField('requesterName', e.target.value)} />
+      <input placeholder={t.contactInfo} value={caseForm.contactInfo} onChange={(e) => updateCaseField('contactInfo', e.target.value)} />
+      <input placeholder={t.requestedAmount} value={caseForm.requestedAmount} onChange={(e) => updateCaseField('requestedAmount', e.target.value)} />
+      <select value={caseForm.urgency} onChange={(e) => updateCaseField('urgency', e.target.value)}>
+        <option value="low">{t.low}</option>
+        <option value="medium">{t.medium}</option>
+        <option value="high">{t.high}</option>
+      </select>
+      <input placeholder={t.reason} value={caseForm.reason} onChange={(e) => updateCaseField('reason', e.target.value)} />
+      <textarea placeholder={t.caseDescription} value={caseForm.description} onChange={(e) => updateCaseField('description', e.target.value)} />
+      <button className="primary full" onClick={submitEmergencyCase}>{t.submitCase}</button>
+    </div>
+
+    <div className="card">
+      <div className="split mb"><h3>{t.recentDonations}</h3><span className="tiny">{t.publicReport}</span></div>
+      {donations.map((d) => <div className="donation" key={d.id}><div className="person compact"><div className="mini-icon"><HandHeart size={16} /></div><div><b>{d.donor_name || 'Anonymous'}</b><p>{new Date(d.created_at).toLocaleDateString()}</p></div></div><b className="green-text">{Number(d.amount).toLocaleString()} NOK</b></div>)}
+    </div>
+
+    <div className="card">
+      <div className="split mb"><h3>{t.recentCases}</h3><span className="tiny">{t.underReview}</span></div>
+      {emergencyCases.map((c) => <div className="donation" key={c.id}><div className="person compact"><div className="mini-icon"><ShieldCheck size={16} /></div><div><b>{c.requester_name || 'Anonymous'}</b><p>{c.urgency || 'medium'} · {new Date(c.created_at).toLocaleDateString()}</p></div></div><b className="green-text">{Number(c.requested_amount || 0).toLocaleString()} NOK</b></div>)}
+    </div>
+  </motion.div>;
 }
 
-function MembersScreen({ t, members }) {
-  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space"><div className="split"><h2 className="white-title">{t.members}</h2><button className="white-btn"><Plus size={18} /></button></div><div className="card">{members.map((m) => <div className="member" key={m.id}><div className="avatar small">{m.full_name?.[0] || 'M'}</div><div><b>{m.full_name}</b><p>{t.trustScore}: {m.trust_score}</p></div><span className={m.status === 'active' ? 'pill ok' : 'pill warn'}>{m.status === 'active' ? t.paid : t.pending}</span></div>)}</div></motion.div>;
+function MembersScreen({ t, members, onAddMember }) {
+  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space"><div className="split"><h2 className="white-title">{t.members}</h2><button className="white-btn" onClick={onAddMember}><Plus size={18} /></button></div><div className="card">{members.map((m) => <div className="member" key={m.id}><div className="avatar small">{m.full_name?.[0] || 'M'}</div><div><b>{m.full_name}</b><p>{t.trustScore}: {m.trust_score}</p></div><span className={m.status === 'active' ? 'pill ok' : 'pill warn'}>{m.status === 'active' ? t.paid : t.pending}</span></div>)}</div></motion.div>;
 }
 
-function ReportsScreen({ t, members, emergencyBalance }) {
-  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space"><div className="card"><h2>{t.transparencyReport}</h2><p className="muted">{t.transparencyText}</p><div className="feature-grid"><MiniCard icon={Wallet} title={t.income} value={(members.length * 500).toLocaleString()} /><MiniCard icon={ArrowUpRight} title={t.payout} value={(members.length * 500).toLocaleString()} /><MiniCard icon={Clock3} title={t.pending} value="2" /><MiniCard icon={CheckCircle2} title={t.emergencyFund} value={emergencyBalance.toLocaleString()} /></div><button className="primary full">{t.exportReport}</button></div><div className="card"><h3>{t.governance}</h3><p className="muted">{t.governanceText}</p><button className="secondary full"><Settings size={16} /> {t.openRules}</button></div></motion.div>;
+function ReportsScreen({ t, members, emergencyBalance, onExport, onOpenRules }) {
+  return <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stack top-space"><div className="card"><h2>{t.transparencyReport}</h2><p className="muted">{t.transparencyText}</p><div className="feature-grid"><MiniCard icon={Wallet} title={t.income} value={(members.length * 500).toLocaleString()} /><MiniCard icon={ArrowUpRight} title={t.payout} value={(members.length * 500).toLocaleString()} /><MiniCard icon={Clock3} title={t.pending} value="2" /><MiniCard icon={CheckCircle2} title={t.emergencyFund} value={emergencyBalance.toLocaleString()} /></div><button className="primary full" onClick={onExport}>{t.exportReport}</button></div><div className="card"><h3>{t.governance}</h3><p className="muted">{t.governanceText}</p><button className="secondary full" onClick={onOpenRules}><Settings size={16} /> {t.openRules}</button></div></motion.div>;
 }
 
 function MiniCard({ icon: Icon, title, value }) { return <div className="mini-card"><Icon size={20} /><p>{title}</p><b>{value}</b></div>; }

@@ -71,6 +71,19 @@ create table if not exists public.emergency_fund (
   created_at timestamptz default now()
 );
 
+-- Emergency support case submissions
+create table if not exists public.emergency_cases (
+  id uuid primary key default uuid_generate_v4(),
+  requester_name text not null,
+  contact_info text not null,
+  requested_amount numeric not null,
+  urgency text default 'medium' check (urgency in ('low', 'medium', 'high')),
+  reason text not null,
+  description text,
+  status text default 'under_review' check (status in ('under_review', 'approved', 'rejected', 'paid')),
+  created_at timestamptz default now()
+);
+
 -- Monthly transparency reports
 create table if not exists public.reports (
   id uuid primary key default uuid_generate_v4(),
@@ -91,6 +104,7 @@ alter table public.payments enable row level security;
 alter table public.queue enable row level security;
 alter table public.donations enable row level security;
 alter table public.emergency_fund enable row level security;
+alter table public.emergency_cases enable row level security;
 alter table public.reports enable row level security;
 
 -- Simple MVP policies
@@ -129,6 +143,18 @@ using (true);
 drop policy if exists "Authenticated users can read emergency fund" on public.emergency_fund;
 create policy "Authenticated users can read emergency fund"
 on public.emergency_fund for select
+to authenticated
+using (true);
+
+drop policy if exists "Anyone can submit emergency cases" on public.emergency_cases;
+create policy "Anyone can submit emergency cases"
+on public.emergency_cases for insert
+to anon, authenticated
+with check (true);
+
+drop policy if exists "Authenticated users can read emergency cases" on public.emergency_cases;
+create policy "Authenticated users can read emergency cases"
+on public.emergency_cases for select
 to authenticated
 using (true);
 
@@ -189,4 +215,9 @@ on conflict do nothing;
 
 insert into public.reports (report_month, total_income, total_payout, emergency_balance, pending_payments, paid_members, published)
 values ('June', 7500, 7500, 2050, 2, 13, true)
+on conflict do nothing;
+
+
+insert into public.emergency_cases (requester_name, contact_info, requested_amount, urgency, reason, description, status)
+values ('Anonymous', 'Private', 1500, 'medium', 'Temporary financial difficulty', 'Demo emergency support case', 'under_review')
 on conflict do nothing;
