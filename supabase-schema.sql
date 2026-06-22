@@ -143,3 +143,40 @@ create policy "audit insert anyone" on audit_logs for insert with check (true);
 -- Storage buckets to create manually in Supabase Storage:
 -- receipts
 -- case-documents
+
+
+-- Automatically create profile rows for new auth users
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.profiles (id, email, full_name, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', new.email),
+    case when new.email = 'owner@payvand.app' then 'owner' else 'member' end
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute procedure public.handle_new_user();
+
+-- Seed an active governance document
+insert into governance_documents (title, version, content, is_active)
+values (
+  'Payvand Detailed Rules',
+  '1.0',
+  'Purpose, membership, monthly contribution, rotating queue, post-payout responsibility, late payment, payment verification, emergency fund, emergency case submission, case review, donations, transparency reporting, admin responsibilities, privacy, voting, misuse/removal, and rule updates.',
+  true
+)
+on conflict do nothing;
+
+-- Create these Storage buckets manually in Supabase Storage:
+-- 1. receipts
+-- 2. case-documents
+-- Recommended for MVP testing: set buckets to public or add bucket policies for authenticated upload/read.
