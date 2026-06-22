@@ -52,6 +52,8 @@ create table if not exists donations (
   donor_name text,
   amount numeric not null,
   emergency_fund boolean default true,
+  status text default 'pending' check (status in ('pending','approved','rejected')),
+  verified_by uuid references profiles(id),
   created_at timestamptz default now()
 );
 
@@ -154,7 +156,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    case when new.email = 'owner@payvand.app' then 'owner' else 'member' end
+    case when new.email = 'alirezanorouziasas@gmail.com' then 'owner' else 'member' end
   )
   on conflict (id) do nothing;
   return new;
@@ -180,3 +182,22 @@ on conflict do nothing;
 -- 1. receipts
 -- 2. case-documents
 -- Recommended for MVP testing: set buckets to public or add bucket policies for authenticated upload/read.
+
+
+-- Migration-safe updates for existing projects
+alter table donations add column if not exists status text default 'pending' check (status in ('pending','approved','rejected'));
+alter table donations add column if not exists verified_by uuid references profiles(id);
+
+-- Owner/admin-only update policy for donations
+drop policy if exists "donations update admins" on donations;
+create policy "donations update admins" on donations for update using (is_owner_or_admin());
+
+-- Profiles read/update policies for admin management
+drop policy if exists "profiles read self or admins" on profiles;
+create policy "profiles read self or admins" on profiles for select using (id = auth.uid() or is_owner_or_admin());
+
+drop policy if exists "profiles update admins" on profiles;
+create policy "profiles update admins" on profiles for update using (is_owner_or_admin());
+
+-- Ensure the real owner profile becomes owner after sign-up
+update profiles set role = 'owner' where email = 'alirezanorouziasas@gmail.com';

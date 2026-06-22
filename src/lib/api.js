@@ -14,7 +14,7 @@ const demo = {
     { id: 'q1', member_name: 'Sara', payout_month: 'June', amount: 7500, status: 'confirmed' },
     { id: 'q2', member_name: 'Reza', payout_month: 'July', amount: 7500, status: 'upcoming' },
   ],
-  donations: [{ id: 'd1', donor_name: 'Guest', amount: 250, created_at: new Date().toISOString() }],
+  donations: [{ id: 'd1', donor_name: 'Guest', amount: 250, status: 'pending', created_at: new Date().toISOString() }, { id: 'd2', donor_name: 'Verified donor', amount: 500, status: 'approved', created_at: new Date().toISOString() }],
   cases: [{ id: 'c1', title: 'Rent support', member_name: 'Reza', requested_amount: 2500, urgency: 'High', status: 'pending', description: 'Temporary rent support request.' }],
   audit_logs: [{ id: 'a1', action: 'Demo audit log created', created_at: new Date().toISOString() }]
 };

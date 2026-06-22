@@ -71,3 +71,42 @@ After uploading to GitHub:
 1. Run `supabase-schema.sql` again in Supabase SQL Editor.
 2. Confirm Storage buckets exist: `receipts` and `case-documents`.
 3. Redeploy in Vercel without build cache.
+
+
+## Access-control and donation-verification update
+This version separates access:
+- Member Login / Registration for ordinary members.
+- Admin Login for owner/admin only.
+- Owner email is set to `alirezanorouziasas@gmail.com`.
+- Only the owner can promote another signed-up user to admin from the Admin panel.
+- Admin panel is hidden unless the signed-in profile role is `owner` or `admin`.
+
+Donation rule:
+- Guest donations are saved as `pending`.
+- Pending donations do not increase the Emergency Fund balance.
+- Admin must approve a donation before it is counted in the verified Emergency Fund.
+
+Responsiveness:
+- Mobile layout works full-screen.
+- Desktop/laptop layout expands into a multi-column dashboard.
+
+After uploading:
+1. Run `supabase-schema.sql` again.
+2. Redeploy in Vercel without build cache.
+3. Sign up once with `alirezanorouziasas@gmail.com` so Supabase creates your owner profile.
+
+
+## Password reset update
+This version adds password recovery:
+- Member Login has “Forgot password?”
+- Admin Login has “Forgot password?”
+- Users receive a Supabase reset email.
+- Reset links return to `/?mode=update-password`.
+- The app then lets the user create a new password.
+
+Supabase setting required:
+Authentication → URL Configuration:
+- Site URL: your Vercel URL, e.g. `https://payvand.vercel.app`
+- Redirect URLs: `https://payvand.vercel.app/*`
+
+If you use another Vercel domain, add that domain instead.

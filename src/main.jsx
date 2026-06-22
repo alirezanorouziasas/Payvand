@@ -6,21 +6,24 @@ import {
   Check, Ban, FileText, Smartphone, CreditCard, Activity, RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { demoMode, signIn, signUp, signOut, getSession } from './lib/supabase';
+import { demoMode, signIn, signUp, signOut, getSession, resetPassword, updatePassword } from './lib/supabase';
 import { list, insert, update, uploadFile, audit, paymentOptions } from './lib/api';
 import './styles.css';
 
-const ownerEmail = 'owner@payvand.app';
+const ownerEmail = 'alirezanorouziasas@gmail.com';
 
 function App() {
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('mode') === 'update-password' ? 'updatePassword' : 'home');
   const [user, setUser] = useState({ email: ownerEmail, role: 'owner', name: 'Alireza' });
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [data, setData] = useState({ members: [], payments: [], donations: [], cases: [], queue: [], audit_logs: [] });
+  const [data, setData] = useState({ profiles: [], members: [], payments: [], donations: [], cases: [], queue: [], audit_logs: [] });
 
   const isOwner = user?.role === 'owner' || user?.email === ownerEmail;
-  const emergencyFund = 1200 + data.donations.reduce((s, d) => s + Number(d.amount || 0), 0);
+  const isAdmin = isOwner || user?.role === 'admin';
+  const approvedDonations = data.donations.filter(d => d.status === 'approved');
+  const pendingDonations = data.donations.filter(d => d.status === 'pending');
+  const emergencyFund = 1200 + approvedDonations.reduce((s, d) => s + Number(d.amount || 0), 0);
   const pendingPayments = data.payments.filter(p => p.status === 'pending').length;
   const pendingCases = data.cases.filter(c => c.status === 'pending').length;
   const nextReceiver = data.queue.find(q => q.status === 'confirmed') || data.queue[0];
@@ -30,10 +33,10 @@ function App() {
   async function load() {
     setLoading(true);
     try {
-      const [members, payments, donations, cases, queue, audit_logs] = await Promise.all([
-        list('members'), list('payments'), list('donations'), list('cases'), list('queue'), list('audit_logs')
+      const [profiles, members, payments, donations, cases, queue, audit_logs] = await Promise.all([
+        list('profiles'), list('members'), list('payments'), list('donations'), list('cases'), list('queue'), list('audit_logs')
       ]);
-      setData({ members, payments, donations, cases, queue, audit_logs });
+      setData({ profiles, members, payments, donations, cases, queue, audit_logs });
     } catch (e) { show(e.message); }
     setLoading(false);
   }
@@ -74,14 +77,18 @@ function App() {
     show('CSV report exported.');
   }
 
-  const props = { tab, setTab, user, setUser, data, load, isOwner, emergencyFund, nextReceiver, pendingPayments, pendingCases, show, approve, reject, exportReport };
+  const props = { tab, setTab, user, setUser, data, load, isOwner, isAdmin, emergencyFund, approvedDonations, pendingDonations, nextReceiver, pendingPayments, pendingCases, show, approve, reject, exportReport };
 
   const nav = [
     ['home', Home, 'Home'],
-    ['fund', Wallet, 'Fund'],
+    ['fund', Wallet, 'Member'],
     ['cases', ClipboardList, 'Cases'],
-    ['admin', Lock, 'Admin'],
+    ['donate', HandHeart, 'Donate'],
     ['analytics', BarChart3, 'Stats'],
+  ];
+  const adminNav = [
+    ['admin', Lock, 'Admin'],
+    ['governance', Scale, 'Rules'],
   ];
 
   return (
@@ -89,10 +96,12 @@ function App() {
       <div className="phone">
         <div className="hero-bg" />
         <div className="content">
-          <Header setTab={setTab} user={user} show={show} loading={loading} load={load} />
+          <Header setTab={setTab} user={user} show={show} loading={loading} load={load} isAdmin={isAdmin} />
           {demoMode && <div className="demo">Demo mode: connect Supabase env variables for real database, auth, storage, RLS and audit logs.</div>}
           {tab === 'home' && <HomeScreen {...props} />}
-          {tab === 'auth' && <AuthScreen {...props} />}
+          {tab === 'auth' && <AuthScreen {...props} accessType="member" />}
+          {tab === 'adminAuth' && <AuthScreen {...props} accessType="admin" />}
+          {tab === 'updatePassword' && <UpdatePasswordScreen {...props} />}
           {tab === 'fund' && <FundScreen {...props} />}
           {tab === 'cases' && <CasesScreen {...props} />}
           {tab === 'donate' && <DonateScreen {...props} />}
@@ -101,7 +110,7 @@ function App() {
           {tab === 'governance' && <GovernanceScreen />}
         </div>
         <nav className="bottom-nav">
-          {nav.map(([id, Icon, label]) => (
+          {[...nav, ...(isAdmin ? adminNav : [])].map(([id, Icon, label]) => (
             <button key={id} onClick={() => setTab(id)} className={tab === id ? 'nav active' : 'nav'}>
               <Icon size={20} /><span>{label}</span>
             </button>
@@ -113,7 +122,7 @@ function App() {
   );
 }
 
-function Header({ setTab, user, show, loading, load }) {
+function Header({ setTab, user, show, loading, load, isAdmin }) {
   return (
     <header className="header">
       <button className="brand" onClick={() => setTab('home')}>
@@ -121,6 +130,8 @@ function Header({ setTab, user, show, loading, load }) {
         <div><h1><span>Pay</span>vand</h1><p>{user?.role || 'guest'} access</p></div>
       </button>
       <div className="header-actions">
+        <button onClick={() => setTab('auth')} className="small-header-btn">Member Login</button>
+        <button onClick={() => setTab('adminAuth')} className="small-header-btn admin-login">Admin Login</button>
         <button onClick={load} className="icon">{loading ? <RefreshCw className="spin" size={18}/> : <RefreshCw size={18}/>}</button>
         <button onClick={() => show('Push notifications are scaffolded. Enable service worker later.')} className="icon"><Bell size={18}/></button>
       </div>
@@ -135,7 +146,7 @@ function HomeScreen({ setTab, emergencyFund, nextReceiver, pendingPayments, pend
       <div className="actions"><button className="primary" onClick={() => setTab('fund')}>Submit Payment</button><button className="secondary" onClick={() => setTab('donate')}>Donate</button></div>
     </Card>
     <div className="grid2">
-      <Mini icon={HandHeart} title="Emergency Fund" value={`${emergencyFund} NOK`} />
+      <Mini icon={HandHeart} title="Verified Emergency Fund" value={`${emergencyFund} NOK`} />
       <Mini icon={Clock3} title="Pending Approvals" value={pendingPayments + pendingCases} />
     </div>
     <Card>
@@ -146,27 +157,106 @@ function HomeScreen({ setTab, emergencyFund, nextReceiver, pendingPayments, pend
   </motion.div>
 }
 
-function AuthScreen({ setUser, setTab, show }) {
+function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
   const [mode, setMode] = useState('signin');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
+  const [resetEmail, setResetEmail] = useState('');
+  const isAdminLogin = accessType === 'admin';
+
   async function submit() {
     try {
       if (demoMode) {
-        setUser({ email: form.email || ownerEmail, role: (form.email || '').includes('owner') ? 'owner' : 'member', name: form.name || 'User' });
-      } else {
-        if (mode === 'signup') await signUp(form.email, form.password, form.name);
-        else await signIn(form.email, form.password);
+        const role = isAdminLogin ? 'owner' : 'member';
+        setUser({ email: form.email || ownerEmail, role, name: form.name || 'User' });
+        show(isAdminLogin ? 'Admin demo access granted.' : 'Member demo access granted.');
+        setTab(isAdminLogin ? 'admin' : 'home');
+        return;
       }
-      show('Authenticated.');
-      setTab('home');
+
+      let authData;
+      if (mode === 'signup') {
+        if (isAdminLogin) {
+          show('Admin accounts cannot self-register. The owner must promote a user to admin.');
+          return;
+        }
+        authData = await signUp(form.email, form.password, form.name);
+        show('Member account created. Check email confirmation if enabled.');
+      } else {
+        authData = await signIn(form.email, form.password);
+      }
+
+      const userId = authData?.user?.id || authData?.session?.user?.id;
+      let profile = null;
+      if (userId) {
+        const { supabase } = await import('./lib/supabase');
+        const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        profile = data;
+      }
+
+      const role = profile?.role || (form.email === ownerEmail ? 'owner' : 'member');
+
+      if (isAdminLogin && !['owner', 'admin'].includes(role) && form.email !== ownerEmail) {
+        show('Access denied. This login is only for owner/admin.');
+        return;
+      }
+
+      setUser({ email: form.email, role, name: profile?.full_name || form.name || form.email });
+      await load();
+      show(isAdminLogin ? 'Admin signed in.' : 'Member signed in.');
+      setTab(isAdminLogin ? 'admin' : 'home');
     } catch(e) { show(e.message); }
   }
-  return <Screen title="Authentication" subtitle="Real Supabase authentication is wired. Add env variables to enable.">
-    <input placeholder="Full name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
+
+  async function requestReset() {
+    try {
+      const email = resetEmail || form.email;
+      if (!email) return show('Enter your email first.');
+      if (demoMode) return show('Password reset works after Supabase is connected.');
+      await resetPassword(email);
+      show('Password reset email sent. Check your inbox.');
+      setMode('signin');
+    } catch(e) { show(e.message); }
+  }
+
+  if (mode === 'forgot') {
+    return <Screen title={isAdminLogin ? 'Reset Admin Password' : 'Reset Member Password'} subtitle="Enter your email and we will send you a password reset link.">
+      <input placeholder="Email" value={resetEmail} onChange={e=>setResetEmail(e.target.value)}/>
+      <button className="primary full" onClick={requestReset}>Send Reset Email</button>
+      <button className="secondary full" onClick={() => setMode('signin')}>Back to sign in</button>
+    </Screen>
+  }
+
+  return <Screen title={isAdminLogin ? 'Admin Access' : 'Member Login / Registration'} subtitle={isAdminLogin ? 'Only the owner and approved admins can enter this area.' : 'Members can register, submit payments, view queue, donate, and submit emergency cases.'}>
+    {!isAdminLogin && <input placeholder="Full name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>}
     <input placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/>
     <input placeholder="Password" type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
     <button className="primary full" onClick={submit}><LogIn size={17}/> {mode === 'signup' ? 'Sign up' : 'Sign in'}</button>
-    <button className="secondary full" onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}>{mode === 'signup' ? 'Switch to sign in' : 'Switch to sign up'}</button>
+    <button className="secondary full" onClick={() => setMode('forgot')}>Forgot password?</button>
+    {!isAdminLogin && <button className="secondary full" onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}>{mode === 'signup' ? 'Switch to sign in' : 'Switch to sign up'}</button>}
+  </Screen>
+}
+
+function UpdatePasswordScreen({ setTab, show }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+
+  async function submitNewPassword() {
+    try {
+      if (!password || password.length < 6) return show('Password must be at least 6 characters.');
+      if (password !== confirm) return show('Passwords do not match.');
+      if (demoMode) return show('Update password works after Supabase is connected.');
+      await updatePassword(password);
+      show('Password updated. You can sign in now.');
+      window.history.replaceState({}, document.title, window.location.origin);
+      setTab('auth');
+    } catch(e) { show(e.message); }
+  }
+
+  return <Screen title="Create New Password" subtitle="Enter and confirm your new password.">
+    <input placeholder="New password" type="password" value={password} onChange={e=>setPassword(e.target.value)}/>
+    <input placeholder="Confirm new password" type="password" value={confirm} onChange={e=>setConfirm(e.target.value)}/>
+    <button className="primary full" onClick={submitNewPassword}>Update Password</button>
+    <button className="secondary full" onClick={() => setTab('auth')}>Back to login</button>
   </Screen>
 }
 
@@ -231,10 +321,10 @@ function DonateScreen({ data, load, show }) {
   const opts = paymentOptions();
   async function donate() {
     try {
-      await insert('donations', { donor_name: 'Guest', amount: Number(amount), emergency_fund: true });
-      await audit(`Donation submitted: ${amount} NOK`, 'guest');
+      await insert('donations', { donor_name: 'Guest', amount: Number(amount), emergency_fund: true, status: 'pending' });
+      await audit(`Donation submitted for admin verification: ${amount} NOK`, 'guest');
       await load();
-      show('Donation recorded.');
+      show('Donation submitted. It will be added after admin verification.');
     } catch(e) { show(e.message); }
   }
   return <Screen title="Donate to Emergency Fund" subtitle="Guest donations are separate from member rotation funds.">
@@ -246,16 +336,45 @@ function DonateScreen({ data, load, show }) {
   </Screen>
 }
 
-function AdminScreen({ isOwner, data, approve, reject }) {
-  if (!isOwner) return <Screen title="Owner Only" subtitle="Only owner/admin can access approvals and sensitive records." icon={Lock}/>;
+function AdminScreen({ isOwner, isAdmin, data, approve, reject, load, show }) {
+  if (!isAdmin) return <Screen title="Admin Access Required" subtitle="Only the owner and approved admins can access this panel." icon={Lock}/>;
+
   const pendingPayments = data.payments.filter(p => p.status === 'pending');
   const pendingCases = data.cases.filter(c => c.status === 'pending');
   const pendingMembers = data.members.filter(m => m.status === 'pending');
+  const pendingDonations = data.donations.filter(d => d.status === 'pending');
+  const profiles = data.profiles || [];
+
+  async function makeAdmin(profileId, role = 'admin') {
+    try {
+      if (demoMode) return show('Admin promotion works after Supabase connection.');
+      const { supabase } = await import('./lib/supabase');
+      const { error } = await supabase.from('profiles').update({ role }).eq('id', profileId);
+      if (error) throw error;
+      await audit(`Changed profile role to ${role}: ${profileId}`, 'owner/admin');
+      await load();
+      show(role === 'admin' ? 'Admin access granted.' : 'Admin access removed.');
+    } catch(e) { show(e.message); }
+  }
+
   return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Admin Dashboard</h2><p className="muted">Approve payments, member applications, emergency cases and review audit logs.</p><div className="grid2"><Mini icon={Clock3} title="Pending payments" value={pendingPayments.length}/><Mini icon={ClipboardList} title="Pending cases" value={pendingCases.length}/></div></Card>
+    <Card><h2>Admin Dashboard</h2><p className="muted">Separate owner/admin area. Only you and users promoted to admin can manage approvals.</p>
+      <div className="grid2">
+        <Mini icon={Clock3} title="Pending donations" value={pendingDonations.length}/>
+        <Mini icon={ClipboardList} title="Pending cases" value={pendingCases.length}/>
+      </div>
+    </Card>
+
+    <Card><h3>Verify Donations</h3>{pendingDonations.length === 0 && <p className="muted">No pending donations.</p>}{pendingDonations.map(d => <ApproveRow key={d.id} title={`${d.donor_name || 'Guest'} · ${d.amount} NOK`} sub={`Status: ${d.status}. Added to Emergency Fund only after approval.`} onApprove={()=>approve('donations', d.id, 'donation')} onReject={()=>reject('donations', d.id, 'donation')}/>)}</Card>
+
     <Card><h3>Pending Payments</h3>{pendingPayments.length === 0 && <p className="muted">No pending payments.</p>}{pendingPayments.map(p => <ApproveRow key={p.id} title={`${p.member_name || 'Member'} · ${p.amount} NOK`} sub={`${p.status} · ${p.receipt_url || ''}`} onApprove={()=>approve('payments', p.id, 'payment')} onReject={()=>reject('payments', p.id, 'payment')}/>)}</Card>
-    <Card><h3>Pending Members</h3>{pendingMembers.length === 0 && <p className="muted">No pending members.</p>}{pendingMembers.map(m => <ApproveRow key={m.id} title={m.name} sub={`${m.email || ''} · ${m.status}`} onApprove={()=>approve('members', m.id, 'member')} onReject={()=>reject('members', m.id, 'member')}/>)}</Card><Card><h3>All Members</h3>{data.members.map(m => <Row key={m.id} title={m.name} sub={`${m.email || ''} · ${m.status} · trust ${m.trust_score || 0}`} status={m.status}/>)}</Card>
-    <Card><h3>Pending Emergency Cases</h3>{pendingCases.length === 0 && <p className="muted">No pending cases.</p>}{pendingCases.map(c => <ApproveRow key={c.id} title={c.title} sub={`${c.status} · ${c.requested_amount} NOK · ${c.urgency || ''}`} onApprove={()=>approve('cases', c.id, 'case')} onReject={()=>reject('cases', c.id, 'case')}/>)}</Card>
+
+    <Card><h3>Pending Members</h3>{pendingMembers.length === 0 && <p className="muted">No pending members.</p>}{pendingMembers.map(m => <ApproveRow key={m.id} title={m.name} sub={`${m.email || ''} · ${m.status}`} onApprove={()=>approve('members', m.id, 'member')} onReject={()=>reject('members', m.id, 'member')}/>)}</Card>
+
+    <Card><h3>Emergency Cases</h3>{pendingCases.length === 0 && <p className="muted">No pending cases.</p>}{pendingCases.map(c => <ApproveRow key={c.id} title={c.title} sub={`${c.status} · ${c.requested_amount} NOK · ${c.urgency || ''}`} onApprove={()=>approve('cases', c.id, 'case')} onReject={()=>reject('cases', c.id, 'case')}/>)}</Card>
+
+    {isOwner && <Card><h3>Admin Access Management</h3><p className="muted">Only owner can promote or remove admins.</p>{profiles.map(p => <div className="row line" key={p.id}><div><b>{p.full_name || p.email}</b><p>{p.email} · {p.role}</p></div><div className="row-actions">{p.role !== 'admin' && p.role !== 'owner' && <button className="okbtn wide" onClick={()=>makeAdmin(p.id, 'admin')}>Make Admin</button>}{p.role === 'admin' && <button className="badbtn wide" onClick={()=>makeAdmin(p.id, 'member')}>Remove Admin</button>}</div></div>)}</Card>}
+
     <Card><h3>Audit Logs</h3>{data.audit_logs.map(a => <Row key={a.id} title={a.action} sub={new Date(a.created_at).toLocaleString()} />)}</Card>
   </motion.div>
 }
