@@ -19,14 +19,14 @@ export async function signUp(email, password, fullName) {
     password,
     options: { data: { full_name: fullName } }
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function signIn(email, password) {
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
@@ -47,13 +47,13 @@ export async function resetPassword(email) {
   if (!supabase) throw new Error('Supabase is not configured.');
   const redirectTo = `${window.location.origin}/?mode=update-password`;
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }
 
 export async function updatePassword(newPassword) {
   if (!supabase) throw new Error('Supabase is not configured.');
   const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
   return data;
 }

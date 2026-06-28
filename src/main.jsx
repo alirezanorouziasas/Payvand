@@ -180,6 +180,19 @@ function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
           return;
         }
         authData = await signUp(form.email, form.password, form.name);
+        try {
+          await insert('members', {
+            name: form.name || form.email,
+            full_name: form.name || form.email,
+            email: form.email,
+            status: 'pending',
+            trust_score: 70,
+            agreed_to_terms: true
+          });
+          await audit(`Member registration submitted: ${form.email}`, form.email);
+        } catch(memberError) {
+          console.warn('Member row was not created:', memberError);
+        }
         show('Member account created. Check email confirmation if enabled.');
       } else {
         authData = await signIn(form.email, form.password);
@@ -204,7 +217,7 @@ function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
       await load();
       show(isAdminLogin ? 'Admin signed in.' : 'Member signed in.');
       setTab(isAdminLogin ? 'admin' : 'home');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
 
   async function requestReset() {
@@ -215,7 +228,7 @@ function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
       await resetPassword(email);
       show('Password reset email sent. Check your inbox.');
       setMode('signin');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
 
   if (mode === 'forgot') {
@@ -249,7 +262,7 @@ function UpdatePasswordScreen({ setTab, show }) {
       show('Password updated. You can sign in now.');
       window.history.replaceState({}, document.title, window.location.origin);
       setTab('auth');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
 
   return <Screen title="Create New Password" subtitle="Enter and confirm your new password.">
@@ -274,7 +287,7 @@ function FundScreen({ data, load, show }) {
       await audit('Submitted payment receipt', 'current user');
       await load();
       show('Receipt submitted.');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
   return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
     <Card><h2>Payment & File Upload</h2><p className="muted">Upload a receipt. Owner approves it in Admin.</p>
@@ -301,7 +314,7 @@ function CasesScreen({ data, load, show }) {
       await load();
       show('Case submitted.');
       setForm({ title:'', description:'', requested_amount:'', urgency:'Medium' });
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
   return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
     <Card><h2>Emergency Case</h2><p className="muted">Submit a case with description and proof documents.</p>
@@ -325,7 +338,7 @@ function DonateScreen({ data, load, show }) {
       await audit(`Donation submitted for admin verification: ${amount} NOK`, 'guest');
       await load();
       show('Donation submitted. It will be added after admin verification.');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
   return <Screen title="Donate to Emergency Fund" subtitle="Guest donations are separate from member rotation funds.">
     <input value={amount} onChange={e=>setAmount(e.target.value.replace(/\D/g,''))} placeholder="Amount NOK"/>
@@ -354,7 +367,7 @@ function AdminScreen({ isOwner, isAdmin, data, approve, reject, load, show }) {
       await audit(`Changed profile role to ${role}: ${profileId}`, 'owner/admin');
       await load();
       show(role === 'admin' ? 'Admin access granted.' : 'Admin access removed.');
-    } catch(e) { show(e.message); }
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
   }
 
   return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>

@@ -110,3 +110,13 @@ Authentication → URL Configuration:
 - Redirect URLs: `https://payvand.vercel.app/*`
 
 If you use another Vercel domain, add that domain instead.
+
+
+## Signup fix update
+This version improves error handling so Supabase errors show readable messages instead of `{}`.
+It also creates a pending `members` row when a user signs up from Member Login.
+
+If signup still fails and the user does not appear in Supabase Authentication → Users, check:
+- Authentication → Providers → Email is enabled
+- Authentication → Providers → Email signups are enabled
+- The Supabase schema/profile trigger ran successfully
