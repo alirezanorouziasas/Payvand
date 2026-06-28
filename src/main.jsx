@@ -14,12 +14,12 @@ const ownerEmail = 'alirezanorouziasas@gmail.com';
 
 function App() {
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('mode') === 'update-password' ? 'updatePassword' : 'home');
-  const [user, setUser] = useState({ email: ownerEmail, role: 'owner', name: 'Alireza' });
+  const [user, setUser] = useState({ email: '', role: 'guest', name: 'Guest' });
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [data, setData] = useState({ profiles: [], members: [], payments: [], donations: [], cases: [], queue: [], audit_logs: [] });
+  const [data, setData] = useState({ profiles: [], members: [], payments: [], donations: [], cases: [], queue: [], groups: [], group_memberships: [], audit_logs: [] });
 
-  const isOwner = user?.role === 'owner' || user?.email === ownerEmail;
+  const isOwner = user?.role === 'owner' || (user?.email && user.email === ownerEmail);
   const isAdmin = isOwner || user?.role === 'admin';
   const approvedDonations = data.donations.filter(d => d.status === 'approved');
   const pendingDonations = data.donations.filter(d => d.status === 'pending');
@@ -33,10 +33,10 @@ function App() {
   async function load() {
     setLoading(true);
     try {
-      const [profiles, members, payments, donations, cases, queue, audit_logs] = await Promise.all([
-        list('profiles'), list('members'), list('payments'), list('donations'), list('cases'), list('queue'), list('audit_logs')
+      const [profiles, members, payments, donations, cases, queue, groups, group_memberships, audit_logs] = await Promise.all([
+        list('profiles'), list('members'), list('payments'), list('donations'), list('cases'), list('queue'), list('groups'), list('group_memberships'), list('audit_logs')
       ]);
-      setData({ profiles, members, payments, donations, cases, queue, audit_logs });
+      setData({ profiles, members, payments, donations, cases, queue, groups, group_memberships, audit_logs });
     } catch (e) { show(e.message); }
     setLoading(false);
   }
@@ -63,6 +63,8 @@ function App() {
       ['Payments', data.payments.length],
       ['Donations', data.donations.length],
       ['Emergency cases', data.cases.length],
+      ['Groups', data.groups?.length || 0],
+      ['Group memberships', data.group_memberships?.length || 0],
       ['Emergency fund', emergencyFund],
       ['Pending payments', pendingPayments],
       ['Pending cases', pendingCases]
@@ -82,6 +84,7 @@ function App() {
   const nav = [
     ['home', Home, 'Home'],
     ['fund', Wallet, 'Member'],
+    ['groups', Users, 'Groups'],
     ['cases', ClipboardList, 'Cases'],
     ['donate', HandHeart, 'Donate'],
     ['analytics', BarChart3, 'Stats'],
@@ -103,6 +106,7 @@ function App() {
           {tab === 'adminAuth' && <AuthScreen {...props} accessType="admin" />}
           {tab === 'updatePassword' && <UpdatePasswordScreen {...props} />}
           {tab === 'fund' && <FundScreen {...props} />}
+          {tab === 'groups' && <GroupsScreen {...props} />}
           {tab === 'cases' && <CasesScreen {...props} />}
           {tab === 'donate' && <DonateScreen {...props} />}
           {tab === 'admin' && <AdminScreen {...props} />}
@@ -153,7 +157,7 @@ function HomeScreen({ setTab, emergencyFund, nextReceiver, pendingPayments, pend
       <h3>Next Receiver</h3>
       <div className="row"><div className="avatar">{(nextReceiver?.member_name || 'S')[0]}</div><div><b>{nextReceiver?.member_name || 'Sara'}</b><p>{nextReceiver?.payout_month || 'June'} · {nextReceiver?.status || 'confirmed'}</p></div></div>
     </Card>
-    <Card><h3>Quick Actions</h3><button className="secondary full" onClick={() => setTab('governance')}>Read Terms & Governance</button><button className="secondary full" onClick={() => setTab('analytics')}>Open Analytics</button></Card>
+    <Card><h3>Quick Actions</h3><button className="secondary full" onClick={() => setTab('groups')}>Join a Group</button><button className="secondary full" onClick={() => setTab('governance')}>Read Terms & Governance</button><button className="secondary full" onClick={() => setTab('analytics')}>Open Analytics</button></Card>
   </motion.div>
 }
 
@@ -176,26 +180,13 @@ function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
       let authData;
       if (mode === 'signup') {
         if (isAdminLogin) {
-          show('Admin accounts cannot self-register. The owner must promote a user to admin.');
+          show('Admin accounts cannot self-register. Sign up as a member first, then owner promotes admin.');
           return;
         }
-        authData = await signUp(form.email, form.password, form.name);
-        try {
-          await insert('members', {
-            name: form.name || form.email,
-            full_name: form.name || form.email,
-            email: form.email,
-            status: 'pending',
-            trust_score: 70,
-            agreed_to_terms: true
-          });
-          await audit(`Member registration submitted: ${form.email}`, form.email);
-        } catch(memberError) {
-          console.warn('Member row was not created:', memberError);
-        }
+        authData = await signUp(form.email.trim(), form.password, form.name);
         show('Member account created. Check email confirmation if enabled.');
       } else {
-        authData = await signIn(form.email, form.password);
+        authData = await signIn(form.email.trim(), form.password);
       }
 
       const userId = authData?.user?.id || authData?.session?.user?.id;
@@ -206,14 +197,14 @@ function AuthScreen({ setUser, setTab, show, load, accessType = 'member' }) {
         profile = data;
       }
 
-      const role = profile?.role || (form.email === ownerEmail ? 'owner' : 'member');
+      const role = profile?.role || (form.email.trim() === ownerEmail ? 'owner' : 'member');
 
       if (isAdminLogin && !['owner', 'admin'].includes(role) && form.email !== ownerEmail) {
         show('Access denied. This login is only for owner/admin.');
         return;
       }
 
-      setUser({ email: form.email, role, name: profile?.full_name || form.name || form.email });
+      setUser({ email: form.email.trim(), role, name: profile?.full_name || form.name || form.email });
       await load();
       show(isAdminLogin ? 'Admin signed in.' : 'Member signed in.');
       setTab(isAdminLogin ? 'admin' : 'home');
@@ -272,6 +263,82 @@ function UpdatePasswordScreen({ setTab, show }) {
     <button className="secondary full" onClick={() => setTab('auth')}>Back to login</button>
   </Screen>
 }
+
+
+function GroupsScreen({ data, user, isAdmin, load, show }) {
+  const [selected, setSelected] = useState('');
+  const groups = data.groups || [];
+  const memberships = data.group_memberships || [];
+
+  async function joinGroup(group) {
+    try {
+      if (!user?.email) {
+        show('Please sign in as a member first.');
+        return;
+      }
+      const already = memberships.find(m => m.group_id === group.id && (m.member_email || '').toLowerCase() === user.email.toLowerCase());
+      if (already) {
+        show(`You already requested/joined this group. Status: ${already.status}`);
+        return;
+      }
+      await insert('group_memberships', {
+        group_id: group.id,
+        member_email: user.email,
+        member_name: user.name || user.email,
+        status: 'pending'
+      });
+      await audit(`Requested to join group: ${group.name}`, user.email);
+      await load();
+      show('Join request sent. Admin must approve it.');
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
+  }
+
+  const visibleGroups = groups.filter(g => g.status !== 'closed' || isAdmin);
+
+  return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
+    <Card>
+      <h2>Payvand Groups</h2>
+      <p className="muted">Groups let Payvand run several rotating funds in parallel. A member can join one or more groups instead of waiting for one long round to finish.</p>
+      <div className="grid2">
+        <Mini icon={Users} title="Active groups" value={visibleGroups.filter(g => g.status !== 'closed').length}/>
+        <Mini icon={Clock3} title="Your requests" value={memberships.filter(m => (m.member_email || '').toLowerCase() === (user?.email || '').toLowerCase()).length}/>
+      </div>
+    </Card>
+
+    <Card>
+      <h3>Available Groups</h3>
+      {visibleGroups.length === 0 && <p className="muted">No groups have been created yet.</p>}
+      {visibleGroups.map(group => {
+        const groupMemberships = memberships.filter(m => m.group_id === group.id && ['approved','active','pending'].includes(m.status));
+        const approvedCount = groupMemberships.filter(m => ['approved','active'].includes(m.status)).length;
+        const myMembership = memberships.find(m => m.group_id === group.id && (m.member_email || '').toLowerCase() === (user?.email || '').toLowerCase());
+        const capacity = Number(group.capacity || 0);
+        const isFull = capacity > 0 && approvedCount >= capacity;
+        return <div className="group-card" key={group.id}>
+          <div className="split">
+            <div>
+              <h3>{group.name}</h3>
+              <p className="muted">{group.description || 'Parallel rotating group'}</p>
+            </div>
+            <span className={`badge ${group.status || 'active'}`}>{group.status || 'active'}</span>
+          </div>
+          <div className="grid2">
+            <Mini icon={Wallet} title="Monthly amount" value={`${group.monthly_amount || 0} NOK`}/>
+            <Mini icon={HandHeart} title="Payout" value={`${group.payout_amount || 0} NOK`}/>
+            <Mini icon={Users} title="Members" value={`${approvedCount}${capacity ? '/' + capacity : ''}`}/>
+            <Mini icon={Clock3} title="Period" value={`${group.period_months || capacity || '-'} months`}/>
+          </div>
+          <p className="tiny">Start: {group.start_month || 'Not set'} · Frequency: {group.frequency || 'monthly'}</p>
+          {myMembership && <p className="tiny">Your status: <b>{myMembership.status}</b></p>}
+          <button className="primary full" disabled={isFull || !!myMembership || group.status === 'closed'} onClick={() => joinGroup(group)}>
+            {isFull ? 'Group Full' : myMembership ? 'Request Sent' : 'Join This Group'}
+          </button>
+        </div>
+      })}
+    </Card>
+  </motion.div>
+}
+
 
 function FundScreen({ data, load, show }) {
   const [file, setFile] = useState(null);
@@ -357,6 +424,48 @@ function AdminScreen({ isOwner, isAdmin, data, approve, reject, load, show }) {
   const pendingMembers = data.members.filter(m => m.status === 'pending');
   const pendingDonations = data.donations.filter(d => d.status === 'pending');
   const profiles = data.profiles || [];
+  const groups = data.groups || [];
+  const pendingGroupMemberships = (data.group_memberships || []).filter(m => m.status === 'pending');
+  const [groupForm, setGroupForm] = useState({ name:'', description:'', monthly_amount:'500', capacity:'10', payout_amount:'5000', period_months:'10', start_month:'', frequency:'monthly', status:'active' });
+
+  async function createGroup() {
+    try {
+      await insert('groups', {
+        name: groupForm.name,
+        description: groupForm.description,
+        monthly_amount: Number(groupForm.monthly_amount || 0),
+        capacity: Number(groupForm.capacity || 0),
+        payout_amount: Number(groupForm.payout_amount || 0),
+        period_months: Number(groupForm.period_months || 0),
+        start_month: groupForm.start_month,
+        frequency: groupForm.frequency,
+        status: groupForm.status
+      });
+      await audit(`Created group: ${groupForm.name}`, 'owner/admin');
+      await load();
+      setGroupForm({ name:'', description:'', monthly_amount:'500', capacity:'10', payout_amount:'5000', period_months:'10', start_month:'', frequency:'monthly', status:'active' });
+      show('Group created.');
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
+  }
+
+  async function approveGroupMembership(id) {
+    try {
+      await update('group_memberships', id, { status: 'approved' });
+      await audit(`Approved group membership: ${id}`, 'owner/admin');
+      await load();
+      show('Group membership approved.');
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
+  }
+
+  async function rejectGroupMembership(id) {
+    try {
+      await update('group_memberships', id, { status: 'rejected' });
+      await audit(`Rejected group membership: ${id}`, 'owner/admin');
+      await load();
+      show('Group membership rejected.');
+    } catch(e) { show(e?.message || JSON.stringify(e)); }
+  }
+
 
   async function makeAdmin(profileId, role = 'admin') {
     try {
@@ -375,8 +484,47 @@ function AdminScreen({ isOwner, isAdmin, data, approve, reject, load, show }) {
       <div className="grid2">
         <Mini icon={Clock3} title="Pending donations" value={pendingDonations.length}/>
         <Mini icon={ClipboardList} title="Pending cases" value={pendingCases.length}/>
+        <Mini icon={Users} title="Group requests" value={pendingGroupMemberships.length}/>
+        <Mini icon={Wallet} title="Active groups" value={groups.filter(g => g.status !== "closed").length}/>
       </div>
     </Card>
+
+
+    <Card>
+      <h3>Create New Group</h3>
+      <p className="muted">Use this to run several rotating circles at the same time.</p>
+      <input placeholder="Group name, e.g. Payvand Group A" value={groupForm.name} onChange={e=>setGroupForm({...groupForm,name:e.target.value})}/>
+      <textarea placeholder="Description / purpose" value={groupForm.description} onChange={e=>setGroupForm({...groupForm,description:e.target.value})}/>
+      <div className="grid2">
+        <input placeholder="Monthly amount" value={groupForm.monthly_amount} onChange={e=>setGroupForm({...groupForm,monthly_amount:e.target.value.replace(/\D/g,'')})}/>
+        <input placeholder="Capacity" value={groupForm.capacity} onChange={e=>setGroupForm({...groupForm,capacity:e.target.value.replace(/\D/g,'')})}/>
+        <input placeholder="Payout amount" value={groupForm.payout_amount} onChange={e=>setGroupForm({...groupForm,payout_amount:e.target.value.replace(/\D/g,'')})}/>
+        <input placeholder="Period months" value={groupForm.period_months} onChange={e=>setGroupForm({...groupForm,period_months:e.target.value.replace(/\D/g,'')})}/>
+      </div>
+      <input placeholder="Start month, e.g. August 2026" value={groupForm.start_month} onChange={e=>setGroupForm({...groupForm,start_month:e.target.value})}/>
+      <select value={groupForm.status} onChange={e=>setGroupForm({...groupForm,status:e.target.value})}>
+        <option value="active">active</option>
+        <option value="draft">draft</option>
+        <option value="closed">closed</option>
+      </select>
+      <button className="primary full" onClick={createGroup}>Create Group</button>
+    </Card>
+
+    <Card>
+      <h3>Pending Group Join Requests</h3>
+      {pendingGroupMemberships.length === 0 && <p className="muted">No pending group requests.</p>}
+      {pendingGroupMemberships.map(m => {
+        const group = groups.find(g => g.id === m.group_id);
+        return <ApproveRow key={m.id} title={`${m.member_name || m.member_email} → ${group?.name || 'Group'}`} sub={`${m.member_email || ''} · ${m.status}`} onApprove={()=>approveGroupMembership(m.id)} onReject={()=>rejectGroupMembership(m.id)}/>
+      })}
+    </Card>
+
+    <Card>
+      <h3>Existing Groups</h3>
+      {groups.length === 0 && <p className="muted">No groups yet.</p>}
+      {groups.map(g => <Row key={g.id} title={g.name} sub={`${g.status} · ${g.monthly_amount || 0} NOK/month · capacity ${g.capacity || '-'}`} status={g.status}/>)}
+    </Card>
+
 
     <Card><h3>Verify Donations</h3>{pendingDonations.length === 0 && <p className="muted">No pending donations.</p>}{pendingDonations.map(d => <ApproveRow key={d.id} title={`${d.donor_name || 'Guest'} · ${d.amount} NOK`} sub={`Status: ${d.status}. Added to Emergency Fund only after approval.`} onApprove={()=>approve('donations', d.id, 'donation')} onReject={()=>reject('donations', d.id, 'donation')}/>)}</Card>
 
@@ -396,7 +544,7 @@ function AnalyticsScreen({ data, emergencyFund, exportReport }) {
   const approvedPayments = data.payments.filter(p => p.status === 'approved').length;
   const pending = data.payments.filter(p => p.status === 'pending').length + data.cases.filter(c => c.status === 'pending').length;
   return <motion.div className="stack top" initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-    <Card><h2>Analytics</h2><p className="muted">Real dashboard from database values.</p><div className="grid2"><Mini icon={Users} title="Members" value={data.members.length}/><Mini icon={Wallet} title="Approved payments" value={approvedPayments}/><Mini icon={HandHeart} title="Emergency fund" value={emergencyFund}/><Mini icon={Clock3} title="Pending actions" value={pending}/></div><button className="primary full" onClick={exportReport}><Download size={17}/> Export CSV</button></Card>
+    <Card><h2>Analytics</h2><p className="muted">Real dashboard from database values.</p><div className="grid2"><Mini icon={Users} title="Members" value={data.members.length}/><Mini icon={Wallet} title="Approved payments" value={approvedPayments}/><Mini icon={HandHeart} title="Emergency fund" value={emergencyFund}/><Mini icon={Users} title="Groups" value={data.groups?.length || 0}/><Mini icon={Clock3} title="Pending actions" value={pending + ((data.group_memberships || []).filter(m => m.status === "pending").length)}/></div><button className="primary full" onClick={exportReport}><Download size={17}/> Export CSV</button></Card>
   </motion.div>
 }
 
@@ -419,35 +567,39 @@ function GovernanceScreen() {
       text: 'The rotating payout follows a visible queue. Once a queue is confirmed, it should not be changed except for a documented reason approved by the owner/admin or committee.'
     },
     {
-      title: '5. Responsibility After Receiving Payout',
+      title: '5. Groups / Parallel Circles',
+      text: 'Payvand can operate several groups at the same time. A member may request to join one or more groups. Each group has its own monthly amount, capacity, payout size, queue, and start month. Join requests must be approved by owner/admin before the member becomes active in that group.'
+    },
+    {
+      title: '6. Responsibility After Receiving Payout',
       text: 'A member who receives a payout must continue paying until the round ends. Leaving after receiving money is allowed only after the remaining obligation is settled.'
     },
     {
-      title: '6. Late Payment',
+      title: '7. Late Payment',
       text: 'Late payment may trigger reminders, trust-score reduction, delayed payout, suspension, or removal depending on severity and repetition.'
     },
     {
-      title: '7. Payment Verification',
+      title: '8. Payment Verification',
       text: 'Payments require receipt upload or proof of transfer. The owner/admin verifies payment records before they are considered approved.'
     },
     {
-      title: '8. Emergency Fund',
+      title: '9. Emergency Fund',
       text: 'Donations and reserved amounts go into the Emergency Fund. This fund is separate from the rotating member payout and should only be used for approved emergency support.'
     },
     {
-      title: '9. Emergency Case Submission',
+      title: '10. Emergency Case Submission',
       text: 'A person can submit an emergency case with title, description, urgency, requested amount, and optional proof documents. Sensitive case details must remain confidential.'
     },
     {
-      title: '10. Emergency Case Review',
+      title: '11. Emergency Case Review',
       text: 'Emergency cases are reviewed by the owner/admin or committee. Decisions should consider urgency, evidence, fairness, available balance, and risk of misuse.'
     },
     {
-      title: '11. Donations',
+      title: '12. Donations',
       text: 'Non-members can donate to support emergency cases. Donations are recorded separately from member contributions and should be included in transparency reporting.'
     },
     {
-      title: '12. Transparency Reporting',
+      title: '13. Transparency Reporting',
       text: 'Reports should show total contributions, approved payments, donations, emergency fund balance, pending approvals, and major decisions without exposing private data.'
     },
     {

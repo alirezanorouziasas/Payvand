@@ -120,3 +120,34 @@ If signup still fails and the user does not appear in Supabase Authentication �
 - Authentication → Providers → Email is enabled
 - Authentication → Providers → Email signups are enabled
 - The Supabase schema/profile trigger ran successfully
+
+
+## Auth/access clean fix
+This version fixes:
+- No default admin user in the browser.
+- Admin and Rules tabs should be hidden until a signed-in owner/admin user exists.
+- Member signup only creates the Supabase Auth user first.
+- Admin self-registration is blocked.
+- Errors should show readable Supabase messages instead of `{}`.
+- Owner email is `alirezanorouziasas@gmail.com`.
+
+If signup still does not create a user in Supabase Authentication → Users:
+1. Supabase → Authentication → Providers → Email.
+2. Enable Email provider.
+3. Enable signups.
+4. Temporarily disable email confirmation for testing.
+5. Verify Vercel env variables are in the exact project you are opening.
+6. Run `payvand-auth-diagnostic.sql` after trying signup.
+
+
+## Groups feature
+This version adds a `Groups` section so Payvand can run several rotating circles at the same time.
+
+New flow:
+1. Admin creates groups, e.g. Group A, Group B, Family Support Group, Student Group.
+2. Approved members can request to join one or more groups.
+3. Admin approves or rejects group join requests.
+4. Each group can have its own monthly contribution, payout amount, capacity, start month, and period.
+5. This avoids waiting for one full round to finish before new members can participate.
+
+Run `payvand-groups-schema.sql` in Supabase SQL Editor after your main schema.
